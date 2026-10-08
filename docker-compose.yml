@@ -1,4 +1,5 @@
 services:
+  # Database Storage
   postgres:
     image: postgres:16-alpine
     container_name: sherlog-postgres
@@ -11,12 +12,16 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./demo-app/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d sherlog"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - sherlog-network
 
+  # Cache & Event Queue
   redis:
     image: redis:7-alpine
     container_name: sherlog-redis
@@ -30,7 +35,237 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - sherlog-network
+
+  # Observability - Logs
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: sherlog-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sherlog-network
+
+  # Observability - Traces (Jaeger with OTLP receiver)
+  jaeger:
+    image: jaegertracing/all-in-one:1.55
+    container_name: sherlog-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Web UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 --spider http://localhost:16686 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Observability - Alerts
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: sherlog-alertmanager
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 --spider http://localhost:9093/-/healthy || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Demo SaaS - Payments Microservice
+  payments:
+    build:
+      context: ./demo-app/payments
+      dockerfile: Dockerfile
+    container_name: sherlog-payments
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=payments
+      - PORT=8002
+      - LOKI_URL=http://loki:3100
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    ports:
+      - "8002:8002"
+    depends_on:
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Demo SaaS - Orders Microservice
+  orders:
+    build:
+      context: ./demo-app/orders
+      dockerfile: Dockerfile
+    container_name: sherlog-orders
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=orders
+      - PORT=8001
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/sherlog
+      - PAYMENTS_SERVICE_URL=http://payments:8002
+      - LOKI_URL=http://loki:3100
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+      - DB_POOL_SIZE=5
+      - DB_MAX_OVERFLOW=2
+      - DB_POOL_TIMEOUT=2.0
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Demo SaaS - API Gateway Microservice
+  api:
+    build:
+      context: ./demo-app/api
+      dockerfile: Dockerfile
+    container_name: sherlog-api
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=api
+      - PORT=8000
+      - ORDERS_SERVICE_URL=http://orders:8001
+      - LOKI_URL=http://loki:3100
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+      - WEBHOOK_SECRET=sherlog-webhook-secret-key
+    ports:
+      - "8000:8000"
+    depends_on:
+      orders:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Fault Injector Service
+  fault-injector:
+    build:
+      context: ./fault-injector
+      dockerfile: Dockerfile
+    container_name: sherlog-fault-injector
+    restart: unless-stopped
+    environment:
+      - SERVICE_NAME=fault-injector
+      - PORT=8003
+      - API_SERVICE_URL=http://api:8000
+      - ORDERS_SERVICE_URL=http://orders:8001
+      - PAYMENTS_SERVICE_URL=http://payments:8002
+      - LOKI_URL=http://loki:3100
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
+    ports:
+      - "8003:8003"
+    depends_on:
+      api:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
+
+  # Observability - Metrics (Prometheus)
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: sherlog-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      alertmanager:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      orders:
+        condition: service_healthy
+      payments:
+        condition: service_healthy
+      fault-injector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sherlog-network
 
 volumes:
   postgres_data:
   redis_data:
+  loki_data:
+  prometheus_data:
+
+networks:
+  sherlog-network:
+    driver: bridge

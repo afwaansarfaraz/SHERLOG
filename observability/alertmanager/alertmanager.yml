@@ -1,0 +1,19 @@
+global:
+  resolve_timeout: 1m
+
+route:
+  receiver: "sherlog-webhook"
+  group_by: ["alertname", "service"]
+  group_wait: 2s
+  group_interval: 5s
+  repeat_interval: 1m
+
+receivers:
+  - name: "sherlog-webhook"
+    webhook_configs:
+      - url: "http://api:8000/api/v1/webhooks/alertmanager"
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials: "sherlog-webhook-secret-key"

@@ -1,0 +1,53 @@
+groups:
+  - name: sherlog_incident_alerts
+    interval: 5s
+    rules:
+      - alert: DbPoolExhausted
+        expr: rate(db_pool_exhaustion_errors_total[1m]) > 0 or db_pool_exhaustion_errors_total > 0
+        for: 5s
+        labels:
+          severity: critical
+          service: orders
+        annotations:
+          summary: "Database connection pool exhausted in orders service"
+          description: "Orders service is experiencing connection checkout timeouts from PostgreSQL pool"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le, service)) > 1.0
+        for: 5s
+        labels:
+          severity: warning
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "P95 HTTP latency exceeded 1000ms"
+          description: "High request latency detected on {{ $labels.service }}"
+
+      - alert: DependencyTimeout
+        expr: rate(dependency_timeouts_total[1m]) > 0 or dependency_timeouts_total > 0
+        for: 5s
+        labels:
+          severity: critical
+          service: orders
+        annotations:
+          summary: "Downstream dependency timeout in orders service"
+          description: "Orders service timed out attempting to communicate with payments downstream"
+
+      - alert: SlowQueryDetected
+        expr: rate(slow_queries_total[1m]) > 0 or slow_queries_total > 0
+        for: 5s
+        labels:
+          severity: warning
+          service: orders
+        annotations:
+          summary: "Slow queries detected in orders service"
+          description: "Database queries exceeding threshold detected in orders service"
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[1m])) by (service) / sum(rate(http_requests_total[1m])) by (service) > 0.05
+        for: 5s
+        labels:
+          severity: critical
+          service: "{{ $labels.service }}"
+        annotations:
+          summary: "High HTTP 5xx error rate detected"
+          description: "Service {{ $labels.service }} is experiencing >5% HTTP 5xx error rate"
