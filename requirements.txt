@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+psycopg[binary]
+redis
+httpx
+prometheus-client
+opentelemetry-api
+opentelemetry-sdk
