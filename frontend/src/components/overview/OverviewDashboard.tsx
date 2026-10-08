@@ -15,12 +15,14 @@ interface OverviewDashboardProps {
   onNavigateToTab?: (tab: string) => void
   selectedIncidentId?: string | null
   onClearSelectedIncident?: () => void
+  onOpenInvestigationWorkspace?: (id: string) => void
 }
 
 export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   onNavigateToTab,
   selectedIncidentId,
   onClearSelectedIncident,
+  onOpenInvestigationWorkspace,
 }) => {
   const [localIncidentId, setLocalIncidentId] = useState<string | null>(null)
   const [currentDateTime, setCurrentDateTime] = useState("")
@@ -139,6 +141,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         incident={activeModalIncident}
         onClose={handleCloseModal}
         onNavigateToIncidentsTab={() => onNavigateToTab?.("incidents")}
+        onOpenWorkspace={onOpenInvestigationWorkspace}
       />
     </div>
   )

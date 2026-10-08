@@ -8,12 +8,14 @@ interface IncidentDetailModalProps {
   incident: Incident | null
   onClose: () => void
   onNavigateToIncidentsTab?: () => void
+  onOpenWorkspace?: (id: string) => void
 }
 
 export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   incident,
   onClose,
   onNavigateToIncidentsTab,
+  onOpenWorkspace,
 }) => {
   if (!incident) return null
 
@@ -98,7 +100,11 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             size="sm"
             onClick={() => {
               onClose()
-              if (onNavigateToIncidentsTab) onNavigateToIncidentsTab()
+              if (onOpenWorkspace) {
+                onOpenWorkspace(incident.id)
+              } else if (onNavigateToIncidentsTab) {
+                onNavigateToIncidentsTab()
+              }
             }}
           >
             <span>Open Investigation Workspace</span>

@@ -2,18 +2,26 @@ import { useState } from "react"
 import { Shell } from "./components/shell/Shell"
 import { OverviewDashboard } from "./components/overview/OverviewDashboard"
 import { GenericTabView } from "./components/views/GenericTabViews"
+import { InvestigationWorkspace } from "./components/investigation/InvestigationWorkspace"
 import { ErrorBoundary } from "./components/common/ErrorBoundary"
 import type { NavItemKey } from "./components/shell/Sidebar"
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavItemKey>("overview")
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null)
+  const [activeIncidentWorkspace, setActiveIncidentWorkspace] = useState<string | null>(null)
 
   const handleSelectIncident = (id: string) => {
     setSelectedIncidentId(id)
   }
 
+  const handleOpenWorkspace = (id: string) => {
+    setSelectedIncidentId(null)
+    setActiveIncidentWorkspace(id)
+  }
+
   const handleNavigateToTab = (tab: string) => {
+    setActiveIncidentWorkspace(null)
     setActiveTab(tab as NavItemKey)
   }
 
@@ -21,20 +29,29 @@ export function App() {
     <ErrorBoundary moduleName="Sherlog Root Application">
       <Shell
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setActiveIncidentWorkspace(null)
+          setActiveTab(tab)
+        }}
         onSelectIncident={handleSelectIncident}
       >
-        {activeTab === "overview" ? (
+        {activeIncidentWorkspace ? (
+          <InvestigationWorkspace onBackToOverview={() => setActiveIncidentWorkspace(null)} />
+        ) : activeTab === "overview" ? (
           <OverviewDashboard
             onNavigateToTab={handleNavigateToTab}
             selectedIncidentId={selectedIncidentId}
             onClearSelectedIncident={() => setSelectedIncidentId(null)}
+            onOpenInvestigationWorkspace={handleOpenWorkspace}
           />
         ) : (
           <GenericTabView
             tab={activeTab}
-            onBackToOverview={() => setActiveTab("overview")}
-            onSelectIncident={handleSelectIncident}
+            onBackToOverview={() => {
+              setActiveIncidentWorkspace(null)
+              setActiveTab("overview")
+            }}
+            onSelectIncident={handleOpenWorkspace}
           />
         )}
       </Shell>
