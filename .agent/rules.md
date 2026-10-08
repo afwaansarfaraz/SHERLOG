@@ -8,6 +8,7 @@ Before every coding session, read:
 - `docs/requirements.md`
 - `docs/architecture.md`
 - `docs/evaluation.md`
+- `docs/design_system.md`
 
 These documents define the current project scope and architecture.
 Do not change the architecture or project scope without explicit approval.
@@ -138,3 +139,49 @@ Before changing code:
 5. Report what changed.
 
 Never silently replace working architecture with another approach.
+
+## Frontend Visual Design System
+
+The reference design (Case File) is the PRIMARY visual reference for Sherlog's frontend.
+
+### Product Tone
+- Feels like: Linear, Vercel, Datadog, modern AI developer/operations tooling, premium enterprise software.
+- Must NOT feel like: generic SaaS, generic AI startup template, cyberpunk/hacker UI, neon/glowing UI, purple/blue AI dashboard, excessive glassmorphism, or a student project.
+- Aimed at serious SRE / platform engineering / AI infrastructure teams.
+
+### Strict Color Palette ("Case File") — DO NOT CHANGE
+- Background / Ink: `#14110F`
+- Cards / Surface / Soot: `#1D1915`
+- Borders / Ash: `#332D26`
+- Primary text / Bone: `#E8E1D2`
+- Muted text / Dust: `#8C8576`
+- Evidence / Amber: `#E0A63A`
+- Incident / Alert / Vermilion: `#E4572E`
+- Verified root cause / Verdigris: `#4FA38B`
+- Untested hypothesis / Slate: `#8FA3C7`
+- Contradicted evidence / Oxblood: `#8E2F3C`
+
+### Strict Color Semantics
+- Vermilion = incident / critical alert
+- Amber = evidence / investigation activity
+- Slate = hypothesis / unverified state
+- Oxblood = contradicted / failed evidence
+- Verdigris = verified / resolved / approved state
+- Bone = primary UI text
+- Dust = secondary UI text
+- Ash = borders / dividers
+- Use accent colors sparingly. Most of the interface remains Ink/Soot/Bone/Dust.
+
+### Visual Rules
+- Dark-first interface with flat surfaces.
+- No gradients, no giant glowing elements, no excessive shadows.
+- 1px subtle Ash borders (`#332D26`).
+- Strong spatial hierarchy and high information density without clutter.
+- Restrained, consistent rounded corners (`rounded-md` / 6–8px).
+- Typography-driven hierarchy; subtle transitions only where useful.
+- No fake "AI thinking" animations, decorative illustrations, or robot graphics.
+
+### Typography & Tooling
+- UI / Headings: Modern sans-serif (Inter, Space Grotesk, Inter Tight).
+- Technical / Logs / Traces / Tool Code: Monospace (JetBrains Mono, IBM Plex Mono).
+- Styling Tooling: Tailwind CSS exclusively.
