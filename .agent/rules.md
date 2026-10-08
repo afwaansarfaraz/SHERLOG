@@ -115,6 +115,27 @@ Use:
 Do not refactor unrelated code while implementing a feature.
 Do not introduce unnecessary abstractions.
 
+### Modularity & Fault Isolation
+
+- Keep the codebase highly modular and loosely coupled.
+- Each module/component must have a single clear responsibility.
+- Use explicit interfaces/contracts between modules.
+- Avoid unnecessary cross-module dependencies and circular dependencies.
+- A failure in one non-critical module must not unnecessarily break unrelated modules.
+- Keep API, SSE, state management, UI components, business logic, data models, and infrastructure concerns separated.
+- Components should fail gracefully with proper loading, error, and empty states.
+- Prefer dependency injection/interfaces where it improves testability and isolation.
+- Do not create global state or utilities when local/module-level scope is sufficient.
+- Do not introduce abstractions without a real need.
+- Changes to one module should require minimal changes to unrelated modules.
+- Shared utilities/components must remain generic and must not contain feature-specific business logic.
+- Never solve a local problem by creating tight coupling across unrelated modules.
+- When adding a dependency, verify that it has a clear purpose and does not unnecessarily increase coupling.
+- Prefer small, testable modules over large files or monolithic components.
+- Backend failures must not cause the entire frontend to crash; display appropriate degraded/error states.
+- Real-time SSE failures must not prevent the rest of the application from functioning.
+- Optional features should degrade gracefully when their API/data source is unavailable.
+
 ## Architecture Changes
 
 If an implementation requires an architecture change:

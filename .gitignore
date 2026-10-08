@@ -57,7 +57,8 @@ redis_data/
 
 # IDE and editors
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 *.swp
 *.swo
 
