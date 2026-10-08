@@ -1,0 +1,65 @@
+import type { Incident } from "../types"
+
+export const mockIncidents: Incident[] = [
+  {
+    id: "INC-00241",
+    title: "API latency spike",
+    service: "Orders service",
+    status: "INVESTIGATING",
+    severity: "CRITICAL",
+    openedAt: "5 min ago",
+    summary:
+      "Orders service experiencing high API latency and increased response times. P95 latency increased by 8.2x.",
+    affectedEndpoints: ["POST /orders/checkout", "GET /orders/history"],
+    assignedTo: "AI Agent (Active)",
+  },
+  {
+    id: "INC-00240",
+    title: "Payment timeouts",
+    service: "Payments service",
+    status: "INVESTIGATING",
+    severity: "HIGH",
+    openedAt: "12 min ago",
+    summary: "Downstream payment provider HTTP socket timeouts during authorization phase.",
+    affectedEndpoints: ["POST /payments/authorize", "POST /payments/capture"],
+    assignedTo: "AI Agent (Active)",
+  },
+  {
+    id: "INC-00239",
+    title: "High error rate (resolved)",
+    service: "Auth service",
+    status: "RESOLVED",
+    severity: "HIGH",
+    openedAt: "1 hour ago",
+    resolvedAt: "25 min ago",
+    summary:
+      "JWT public key cache miss causing 502 bad gateway during token validation spikes. Resolved by auto-cache replenishment.",
+    affectedEndpoints: ["POST /auth/verify"],
+    assignedTo: "Aarav Sharma",
+  },
+  {
+    id: "INC-00238",
+    title: "Database connection pool exhaustion",
+    service: "Orders service",
+    status: "RESOLVED",
+    severity: "CRITICAL",
+    openedAt: "4 hours ago",
+    resolvedAt: "3 hours ago",
+    summary:
+      "Active connection leak in order fulfillment worker pool. Remediated via connection pool resize.",
+    affectedEndpoints: ["POST /orders/create"],
+    assignedTo: "Aarav Sharma",
+  },
+  {
+    id: "INC-00237",
+    title: "Memory utilization threshold breach",
+    service: "API service",
+    status: "RESOLVED",
+    severity: "MEDIUM",
+    openedAt: "18 hours ago",
+    resolvedAt: "17 hours ago",
+    summary: "Ingress proxy node memory exceeded 92% buffer threshold during morning load surge.",
+    affectedEndpoints: ["GET /healthz", "GET /metrics"],
+    assignedTo: "Auto-remediation",
+  },
+]
