@@ -1,25 +1,28 @@
 import importlib.util
 import os
 import sys
+from typing import Any
 import pytest
 from pydantic import ValidationError
 
-def load_module_from_path(module_name: str, file_path: str):
+def load_module_from_path(module_name: str, file_path: str) -> Any:
     spec = importlib.util.spec_from_file_location(module_name, file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load spec from {file_path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
 
-api_models = load_module_from_path(
+api_models: Any = load_module_from_path(
     "api_models",
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../demo-app/api/models.py")),
 )
-payments_models = load_module_from_path(
+payments_models: Any = load_module_from_path(
     "payments_models",
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../demo-app/payments/models.py")),
 )
-orders_models = load_module_from_path(
+orders_models: Any = load_module_from_path(
     "orders_models",
     os.path.abspath(os.path.join(os.path.dirname(__file__), "../../demo-app/orders/models.py")),
 )

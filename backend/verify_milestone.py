@@ -1,5 +1,6 @@
 import json
 import time
+# pyrefly: ignore [missing-import]
 import httpx
 
 def test_communication():
