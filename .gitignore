@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
+!frontend/src/lib/
 parts/
 sdist/
 var/
@@ -25,6 +26,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+
+# JavaScript & Frontend
+node_modules/
+frontend/dist/
+loki_data/
+prometheus_data/
 
 # Virtual Environments
 .venv/
