@@ -51,7 +51,7 @@ export const ConfigDiffModal: React.FC<ConfigDiffModalProps> = ({
         </div>
 
         {/* Diff Content */}
-        <div className="p-4 overflow-y-auto font-mono text-xs bg-ink/90 flex-1 divide-y divide-ash/20">
+        <div className="p-4 overflow-y-auto font-mono text-xs bg-ink/90 flex-1 divide-y divide-ash/20 custom-scrollbar">
           {lines.map((line, idx) => {
             const isAdded = line.startsWith("+") && !line.startsWith("+++")
             const isRemoved = line.startsWith("-") && !line.startsWith("---")
@@ -71,10 +71,10 @@ export const ConfigDiffModal: React.FC<ConfigDiffModalProps> = ({
                         : "text-bone/80"
                 }`}
               >
-                <span className="text-dust/50 select-none text-[10px] w-6 text-right">
+                <span className="text-dust/50 select-none text-[10px] w-6 text-right shrink-0">
                   {idx + 1}
                 </span>
-                <span className="whitespace-pre flex-1">{line}</span>
+                <span className="whitespace-pre flex-1 overflow-x-auto custom-scrollbar">{line}</span>
               </div>
             )
           })}

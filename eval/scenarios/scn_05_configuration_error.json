@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN-005",
+  "fault_id": "configuration_error",
+  "name": "Orders Service Downstream Configuration Error",
+  "description": "Invalid payments downstream service endpoint URL causing HTTP 502 connection refusal",
+  "service": "orders",
+  "expected_root_cause": "invalid_service_configuration",
+  "expected_remediations": ["revert_configuration_change", "fix_service_endpoint_url"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00005",
+    "title": "Configuration error in orders service downstream settings",
+    "service": "orders",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "summary": "Orders service unable to reach payments gateway due to invalid downstream configuration",
+    "source": "alertmanager",
+    "affected_endpoints": ["POST /orders"],
+    "metadata": {
+      "alertname": "ConfigError",
+      "promql": "rate(http_requests_total{status_code=\"502\"}[1m]) > 0"
+    }
+  },
+  "evidence": [
+    {
+      "source": "trace",
+      "name": "http_payments_client_span",
+      "value": 502,
+      "service": "orders",
+      "description": "HTTP 502 Bad Gateway returned by connection handler"
+    },
+    {
+      "source": "config",
+      "name": "PAYMENTS_SERVICE_URL",
+      "value": "http://invalid-payments-endpoint:9999",
+      "service": "orders",
+      "description": "Config property set to invalid host and port"
+    },
+    {
+      "source": "log",
+      "name": "orders_app_log",
+      "value": "Downstream connection error calling Payments at http://invalid-payments-endpoint:9999: ConnectError connection refused",
+      "service": "orders",
+      "description": "Failed connection logged on startup"
+    }
+  ]
+}

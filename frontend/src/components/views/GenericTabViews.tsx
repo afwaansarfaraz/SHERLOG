@@ -53,11 +53,11 @@ export const GenericTabView: React.FC<GenericTabViewProps> = ({
               <div
                 key={inc.id}
                 onClick={() => onSelectIncident?.(inc.id)}
-                className="py-3 px-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-ink/50 transition-colors cursor-pointer rounded"
+                className="py-3 px-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 hover:bg-ink/50 transition-colors cursor-pointer rounded"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-dust">{inc.id}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs text-dust shrink-0">{inc.id}</span>
                     <span className="text-sm font-medium text-bone hover:text-amber transition-colors">
                       {inc.title}
                     </span>
@@ -65,10 +65,10 @@ export const GenericTabView: React.FC<GenericTabViewProps> = ({
                       {inc.status}
                     </Badge>
                   </div>
-                  <p className="text-xs text-dust mt-1">{inc.summary}</p>
+                  <p className="text-xs text-dust mt-1 leading-relaxed">{inc.summary}</p>
                 </div>
-                <div className="font-mono text-xs text-dust shrink-0 text-right">
-                  <div>{inc.service}</div>
+                <div className="font-mono text-xs text-dust shrink-0 text-left sm:text-right pt-1 sm:pt-0 border-t sm:border-t-0 border-ash/40">
+                  <div className="text-bone/80 font-medium">{inc.service}</div>
                   <div className="text-[10px] text-dust/70">{inc.openedAt}</div>
                 </div>
               </div>

@@ -12,17 +12,21 @@ export const TracesView: React.FC<TracesViewProps> = ({ traces }) => {
   return (
     <div className="space-y-3 font-mono text-xs">
       {/* Trace Overview Header */}
-      <div className="p-3 rounded bg-ink/70 border border-ash flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-dust">
+      <div className="p-2.5 sm:p-3 rounded bg-ink/70 border border-ash flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <div className="flex items-center flex-wrap gap-2 text-dust min-w-0">
           <GitCommit className="w-4 h-4 text-amber shrink-0" />
-          <span className="text-bone">Tool: get_traces(service=&apos;orders&apos;)</span>
-          <span className="text-[11px] text-dust">trace_id: 8f4a210bc931e4</span>
+          <span className="text-bone font-medium">Tool: get_traces(service=&apos;orders&apos;)</span>
+          <span className="text-[11px] text-dust bg-soot/80 border border-ash/60 px-1.5 py-0.5 rounded font-mono">
+            trace_id: 8f4a210bc931e4
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-[11px]">
+        <div className="flex items-center gap-2 text-[11px] shrink-0">
           <span className="text-dust">Total Latency:</span>
           <span className="text-vermilion font-semibold">1,240ms</span>
           <span className="text-dust">•</span>
-          <span className="text-vermilion font-semibold">HTTP 500</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#2D1618] text-vermilion border border-[#4F2025]">
+            HTTP 500
+          </span>
         </div>
       </div>
 
@@ -41,19 +45,26 @@ export const TracesView: React.FC<TracesViewProps> = ({ traces }) => {
 
             return (
               <div key={span.id} className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-2 min-w-0">
                     {isError ? (
                       <AlertCircle className="w-3 h-3 text-vermilion shrink-0" />
                     ) : (
                       <CheckCircle2 className="w-3 h-3 text-verdigris shrink-0" />
                     )}
-                    <span className={isError ? "text-bone font-semibold" : "text-dust"}>
+                    <span
+                      className={`truncate ${isError ? "text-bone font-semibold" : "text-dust"}`}
+                      title={span.name}
+                    >
                       {span.name}
                     </span>
-                    <span className="text-dust/70 text-[10px]">[{span.service}]</span>
+                    <span className="text-dust/70 text-[10px] shrink-0">[{span.service}]</span>
                   </div>
-                  <span className={isError ? "text-vermilion font-semibold" : "text-dust"}>
+                  <span
+                    className={`shrink-0 font-medium ${
+                      isError ? "text-vermilion font-semibold" : "text-dust"
+                    }`}
+                  >
                     {span.durationMs}ms
                   </span>
                 </div>
@@ -75,7 +86,7 @@ export const TracesView: React.FC<TracesViewProps> = ({ traces }) => {
                 {isError && span.attributes && (
                   <div className="text-[10px] text-dust pl-5 font-mono pt-0.5 flex flex-wrap gap-2">
                     {Object.entries(span.attributes).map(([k, v]) => (
-                      <span key={k} className="bg-soot border border-ash/60 px-1.5 py-0.2 rounded">
+                      <span key={k} className="bg-soot border border-ash/60 px-1.5 py-0.5 rounded">
                         {k}: <span className="text-amber">{String(v)}</span>
                       </span>
                     ))}

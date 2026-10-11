@@ -40,7 +40,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
           <span className="font-semibold text-xs text-bone tracking-wide">
             Notifications &amp; Alerts
           </span>
-          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-[#3A1E18] text-vermilion border border-[#5E271D]">
+          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-[#3A1E18] text-vermilion border border-[#5E271D]">
             3 New
           </span>
         </div>
@@ -49,7 +49,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
         </button>
       </div>
 
-      <div className="max-h-80 overflow-y-auto divide-y divide-ash/50">
+      <div className="max-h-80 overflow-y-auto divide-y divide-ash/50 custom-scrollbar">
         {mockIncidents.slice(0, 3).map((inc) => (
           <div
             key={inc.id}
@@ -74,8 +74,8 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
                 {inc.status}
               </Badge>
             </div>
-            <p className="text-[11px] text-dust mt-1 line-clamp-2 pl-5.5">{inc.summary}</p>
-            <div className="flex items-center gap-2 text-[10px] font-mono text-dust mt-2 pl-5.5">
+            <p className="text-[11px] text-dust mt-1 line-clamp-2 pl-5">{inc.summary}</p>
+            <div className="flex items-center gap-2 text-[10px] font-mono text-dust mt-2 pl-5">
               <Clock className="w-3 h-3 text-dust" />
               <span>{inc.openedAt}</span>
               <span>•</span>

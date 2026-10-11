@@ -1,0 +1,22 @@
+{
+  "scenario_id": "SCN-010",
+  "fault_id": "none_unmatched",
+  "name": "Vague Uncorrelated Incident with Insufficient Evidence",
+  "description": "Customer support ticket converted to incident without supporting metrics, logs, or traces",
+  "service": "api",
+  "expected_root_cause": "INSUFFICIENT_EVIDENCE",
+  "expected_remediations": [],
+  "expect_insufficient_evidence": true,
+  "incident": {
+    "id": "INC-00010",
+    "title": "Intermittent UI latency reported by support",
+    "service": "api",
+    "severity": "LOW",
+    "status": "OPEN",
+    "summary": "Customer reported occasional UI delay. No observability alerts have triggered.",
+    "source": "manual",
+    "affected_endpoints": [],
+    "metadata": {}
+  },
+  "evidence": []
+}

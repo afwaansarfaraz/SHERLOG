@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN-001",
+  "fault_id": "db_pool_exhaustion",
+  "name": "Orders DB Connection Pool Exhaustion",
+  "description": "SQLAlchemy connection pool exhausted under concurrent orders checkout load",
+  "service": "orders",
+  "expected_root_cause": "database_connection_pool_exhaustion",
+  "expected_remediations": ["increase_db_connection_pool_size", "restart_service"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00001",
+    "title": "Database connection pool exhaustion in orders service",
+    "service": "orders",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "summary": "Orders service is experiencing connection checkout timeouts from PostgreSQL pool",
+    "source": "alertmanager",
+    "affected_endpoints": ["POST /orders", "GET /orders"],
+    "metadata": {
+      "alertname": "DbPoolExhausted",
+      "promql": "rate(db_pool_exhaustion_errors_total[1m]) > 0"
+    }
+  },
+  "evidence": [
+    {
+      "source": "metric",
+      "name": "db_pool_exhaustion_errors_total",
+      "value": 14.0,
+      "service": "orders",
+      "description": "Counter incremented 14 times in 1m window"
+    },
+    {
+      "source": "metric",
+      "name": "db_connections_active",
+      "value": 30.0,
+      "service": "orders",
+      "description": "Active DB connections at ceiling (30/30)"
+    },
+    {
+      "source": "log",
+      "name": "orders_app_log",
+      "value": "QueuePool limit of size 10 overflow 20 reached, connection timed out, timeout 30.00",
+      "service": "orders",
+      "description": "SQLAlchemy pool checkout timeout"
+    }
+  ]
+}

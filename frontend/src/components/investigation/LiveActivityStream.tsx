@@ -71,7 +71,7 @@ export const LiveActivityStream: React.FC = () => {
         </CardTitle>
       </CardHeader>
 
-      <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+      <div className="space-y-2.5 flex-1 overflow-y-auto pr-1 custom-scrollbar">
         {events.map((ev, idx) => {
           const Icon = ev.icon
 
@@ -80,13 +80,17 @@ export const LiveActivityStream: React.FC = () => {
               key={idx}
               className="flex items-start gap-2.5 p-2 rounded bg-ink/40 border border-ash/40 hover:border-ash transition-colors leading-relaxed"
             >
-              <span className="text-dust text-[11px] shrink-0 pt-0.5">{ev.time}</span>
+              <span className="text-dust text-[11px] shrink-0 pt-0.5 font-mono">{ev.time}</span>
 
               <Icon className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${ev.iconColor}`} />
 
-              <div className="min-w-0 flex-1">
-                <span className="text-dust mr-1.5">{ev.title}</span>
-                <span className="text-bone font-medium break-all">{ev.code}</span>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="text-dust text-[11px] leading-tight">
+                  {ev.title}
+                </div>
+                <div className="text-bone font-medium font-mono text-[11px] break-words [word-break:break-word] leading-normal">
+                  {ev.code}
+                </div>
               </div>
             </div>
           )

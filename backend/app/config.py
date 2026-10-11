@@ -22,9 +22,21 @@ class Settings(BaseSettings):
     WEBHOOK_SECRET: Optional[str] = None
     API_KEY: Optional[str] = None
 
-    # Infrastructure placeholders (used in subsequent phases)
-    DATABASE_URL: Optional[str] = None
+    # Database Configuration (PostgreSQL with SQLAlchemy)
+    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5432/sherlog"
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_POOL_TIMEOUT: int = 30
+
     REDIS_URL: Optional[str] = None
+
+    @property
+    def sync_database_url(self) -> str:
+        """Return SQLAlchemy-compatible URL, ensuring psycopg dialect if using postgresql."""
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return url
 
     model_config = SettingsConfigDict(
         env_file=".env",

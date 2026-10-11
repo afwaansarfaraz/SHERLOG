@@ -65,6 +65,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onSel
           <Search className="w-4 h-4 text-dust shrink-0" />
           <input
             ref={inputRef}
+            id="global-search-input"
+            name="globalSearch"
             type="text"
             placeholder="Search incidents, services, logs, runbooks..."
             value={query}
@@ -83,7 +85,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onSel
         </div>
 
         {/* Results List */}
-        <div className="p-3 overflow-y-auto space-y-4 text-xs">
+        <div className="p-3 overflow-y-auto space-y-4 text-xs custom-scrollbar">
           {/* Incidents Section */}
           <div>
             <div className="text-[11px] font-mono uppercase text-dust px-2 mb-1.5 tracking-wider">

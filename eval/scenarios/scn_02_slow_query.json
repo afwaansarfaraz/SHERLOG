@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN-002",
+  "fault_id": "slow_query",
+  "name": "Orders Heavy Database Query Latency",
+  "description": "Orders service database reads executing heavy queries with high latency spikes",
+  "service": "orders",
+  "expected_root_cause": "slow_database_query",
+  "expected_remediations": ["optimize_query_or_add_index", "scale_database_read_replicas"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00002",
+    "title": "Slow database queries detected in orders service",
+    "service": "orders",
+    "severity": "HIGH",
+    "status": "OPEN",
+    "summary": "Database queries exceeding latency threshold detected in orders service",
+    "source": "alertmanager",
+    "affected_endpoints": ["GET /orders"],
+    "metadata": {
+      "alertname": "SlowQueryDetected",
+      "promql": "rate(slow_queries_total[1m]) > 0"
+    }
+  },
+  "evidence": [
+    {
+      "source": "metric",
+      "name": "slow_queries_total",
+      "value": 9.0,
+      "service": "orders",
+      "description": "Slow query counter incremented"
+    },
+    {
+      "source": "metric",
+      "name": "http_request_duration_seconds",
+      "value": 1.82,
+      "service": "orders",
+      "description": "P95 request latency spike at 1.82s"
+    },
+    {
+      "source": "log",
+      "name": "orders_app_log",
+      "value": "Slow query fault active: executing heavy DB query with delay=1.8s",
+      "service": "orders",
+      "description": "Log indicates slow query fault active"
+    }
+  ]
+}

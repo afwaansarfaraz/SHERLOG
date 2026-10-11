@@ -72,12 +72,14 @@ export const EvidenceSummaryCards: React.FC<EvidenceSummaryCardsProps> = ({
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="text-[11px] text-dust font-sans truncate">{card.title}</div>
-                <div className="text-xs font-semibold text-bone font-mono leading-tight mt-0.5 truncate">
+                <div className="text-[11px] text-dust font-sans leading-snug line-clamp-1" title={card.title}>
+                  {card.title}
+                </div>
+                <div className="text-xs font-semibold text-bone font-mono leading-tight mt-0.5 break-words">
                   {card.value}
                 </div>
                 <div
-                  className={`text-[10px] font-mono mt-0.5 truncate ${
+                  className={`text-[10px] font-mono mt-0.5 break-words ${
                     card.isAlert ? "text-amber" : "text-dust/80"
                   }`}
                 >

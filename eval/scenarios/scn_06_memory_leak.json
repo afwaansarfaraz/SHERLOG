@@ -1,0 +1,47 @@
+{
+  "scenario_id": "SCN-006",
+  "fault_id": "memory_leak",
+  "name": "Payments Service Memory Leak and Heap Exhaustion",
+  "description": "Progressive RSS memory growth in payments microservice culminating in OOMKill",
+  "service": "payments",
+  "expected_root_cause": "memory_leak_exhaustion",
+  "expected_remediations": ["restart_service_and_inspect_heap", "increase_container_memory_limit"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00006",
+    "title": "Severe memory exhaustion in payments service",
+    "service": "payments",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "summary": "Payments service RSS memory exceeded 90% threshold with progressive leak",
+    "source": "alertmanager",
+    "affected_endpoints": ["POST /payments/process"],
+    "metadata": {
+      "alertname": "MemoryLeakDetected",
+      "promql": "process_resident_memory_bytes / container_spec_memory_limit_bytes > 0.90"
+    }
+  },
+  "evidence": [
+    {
+      "source": "metric",
+      "name": "process_resident_memory_bytes_ratio",
+      "value": 0.95,
+      "service": "payments",
+      "description": "Memory consumption at 95% of container ceiling"
+    },
+    {
+      "source": "log",
+      "name": "payments_service_log",
+      "value": "OOMKilled: RSS memory consumption leak detected in worker container",
+      "service": "payments",
+      "description": "OOMKill signal caught by runtime"
+    },
+    {
+      "source": "trace",
+      "name": "container_lifecycle_exit_code",
+      "value": 137,
+      "service": "payments",
+      "description": "SIGKILL 137 container exit code recorded"
+    }
+  ]
+}

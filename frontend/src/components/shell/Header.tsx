@@ -23,13 +23,13 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className="h-16 bg-ink border-b border-ash px-4 sm:px-6 flex items-center justify-between gap-4 sticky top-0 z-20 select-none">
+    <header className="h-16 shrink-0 bg-ink border-b border-ash px-4 sm:px-6 flex items-center justify-between gap-4 sticky top-0 z-20 select-none">
       {/* Left Area: Mobile Menu & Search Input */}
-      <div className="flex items-center gap-3 flex-1 max-w-xl">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-xl">
         <button
           onClick={onToggleMobileMenu}
           aria-label="Open mobile navigation"
-          className="md:hidden p-2 text-dust hover:text-bone hover:bg-soot rounded-md border border-transparent hover:border-ash transition-colors"
+          className="md:hidden p-2 text-dust hover:text-bone hover:bg-soot rounded-md border border-transparent hover:border-ash transition-colors shrink-0"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -37,9 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global Search Bar Button */}
         <button
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-md bg-soot/80 border border-ash/90 hover:border-[#4A4237] text-dust hover:text-bone text-xs transition-colors group cursor-pointer text-left"
+          className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-md bg-soot/80 border border-ash/90 hover:border-[#4A4237] text-dust hover:text-bone text-xs transition-colors group cursor-pointer text-left min-w-0"
         >
-          <div className="flex items-center gap-2.5 truncate">
+          <div className="flex items-center gap-2 truncate min-w-0 flex-1">
             <Search className="w-4 h-4 text-dust group-hover:text-bone transition-colors shrink-0" />
             <span className="truncate">Search incidents, services, logs...</span>
           </div>
@@ -51,9 +51,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right Area: System Status, Actions & User */}
-      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {/* System Status Pill */}
-        <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-soot/60 border border-ash text-xs text-bone font-mono">
+        <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-soot/60 border border-ash text-xs text-bone font-mono">
           <span className="w-2 h-2 rounded-full bg-verdigris animate-pulse shrink-0" />
           <span className="text-[11px] text-dust">System Operational</span>
         </div>
@@ -94,10 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-2.5 p-1 rounded-md hover:bg-soot border border-transparent hover:border-ash transition-colors text-left"
           >
             <div className="w-7 h-7 rounded-full bg-[#27211B] border border-ash flex items-center justify-center font-mono text-xs font-semibold text-bone shrink-0">
-              AS
+              AF
             </div>
             <div className="hidden lg:flex flex-col">
-              <span className="text-xs font-medium text-bone leading-tight">Aarav Sharma</span>
+              <span className="text-xs font-medium text-bone leading-tight">Afwaan</span>
               <span className="text-[10px] text-dust font-mono leading-tight">admin</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-dust hidden lg:block" />
@@ -110,8 +110,8 @@ export const Header: React.FC<HeaderProps> = ({
               onMouseLeave={() => setIsUserMenuOpen(false)}
             >
               <div className="px-3 py-2 border-b border-ash/70">
-                <p className="font-medium text-bone">Aarav Sharma</p>
-                <p className="text-[10px] font-mono text-dust">sre-lead@sherlog.internal</p>
+                <p className="font-medium text-bone">Afwaan</p>
+                <p className="text-[10px] font-mono text-dust">afwaan@sherlog.internal</p>
               </div>
               <button
                 onClick={() => setIsUserMenuOpen(false)}

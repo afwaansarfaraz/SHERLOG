@@ -77,7 +77,7 @@ export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
 
                 {/* Subtitle / Details if active or recently completed */}
                 {step.details && (isCompleted || isActive) && (
-                  <div className="text-[11px] text-dust/70 mt-1 leading-snug line-clamp-2">
+                  <div className="text-[11px] text-dust/70 mt-1 leading-relaxed break-words">
                     {step.details}
                   </div>
                 )}

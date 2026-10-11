@@ -35,7 +35,7 @@ export const mockIncidents: Incident[] = [
     summary:
       "JWT public key cache miss causing 502 bad gateway during token validation spikes. Resolved by auto-cache replenishment.",
     affectedEndpoints: ["POST /auth/verify"],
-    assignedTo: "Aarav Sharma",
+    assignedTo: "Afwaan",
   },
   {
     id: "INC-00238",
@@ -48,7 +48,7 @@ export const mockIncidents: Incident[] = [
     summary:
       "Active connection leak in order fulfillment worker pool. Remediated via connection pool resize.",
     affectedEndpoints: ["POST /orders/create"],
-    assignedTo: "Aarav Sharma",
+    assignedTo: "Afwaan",
   },
   {
     id: "INC-00237",

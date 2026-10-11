@@ -68,7 +68,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-bone tracking-tight">
-            Good evening, Aarav
+            Good evening, Afwaan
           </h1>
           <p className="text-xs sm:text-sm text-dust mt-0.5">
             Here&apos;s what&apos;s happening with your systems.

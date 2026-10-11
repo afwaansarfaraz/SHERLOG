@@ -84,15 +84,15 @@ export const EvidenceDetailView: React.FC<EvidenceDetailViewProps> = ({
                 onClick={() => onToggleExpand(item.id)}
                 className="p-3 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-ink/60 transition-colors"
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="text-dust">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="text-dust shrink-0">
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
                       <ChevronRight className="w-4 h-4" />
                     )}
                   </span>
-                  <div className="truncate">
+                  <div className="truncate min-w-0">
                     <span className="font-semibold text-bone">{item.title}</span>
                     <span className="text-dust font-mono text-[11px] ml-2 hidden sm:inline">
                       ({item.source})
@@ -118,7 +118,7 @@ export const EvidenceDetailView: React.FC<EvidenceDetailViewProps> = ({
                         <Code2 className="w-3 h-3 text-amber" />
                         <span>Source Telemetry Output (Sanitized &amp; Delimited)</span>
                       </div>
-                      <pre className="p-2.5 rounded bg-ink border border-ash text-[11px] font-mono text-bone overflow-x-auto whitespace-pre leading-relaxed select-text">
+                      <pre className="p-2.5 rounded bg-ink border border-ash text-[11px] font-mono text-bone overflow-x-auto whitespace-pre leading-relaxed select-text custom-scrollbar">
                         {item.rawSnippet}
                       </pre>
                     </div>

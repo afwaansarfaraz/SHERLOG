@@ -52,13 +52,13 @@ export const SystemHealthCard: React.FC<SystemHealthCardProps> = ({ services, on
               className="flex items-center justify-between gap-3 p-2.5 rounded-md bg-ink/40 border border-ash/60"
             >
               {/* Service Label */}
-              <div className="flex items-center gap-2.5 w-24 shrink-0">
+              <div className="flex items-center gap-2.5 w-28 sm:w-32 shrink-0">
                 <span className="text-dust">{getServiceIcon(srv.name)}</span>
                 <span className="text-xs font-medium text-bone truncate">{srv.displayName}</span>
               </div>
 
               {/* Progress Bar */}
-              <div className="flex-1 max-w-xs">
+              <div className="flex-1 max-w-xs mx-1 sm:mx-2">
                 <div className="h-1.5 w-full bg-[#27211B] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${

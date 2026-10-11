@@ -88,7 +88,7 @@ export const RemediationDock: React.FC<RemediationDockProps> = ({
             {isApproved ? (
               <div className="text-xs font-mono text-verdigris flex items-center gap-1.5">
                 <Check className="w-4 h-4" />
-                <span>Approved by Aarav Sharma</span>
+                <span>Approved by Afwaan</span>
               </div>
             ) : isRejected ? (
               <div className="text-xs font-mono text-oxblood flex items-center gap-1.5">

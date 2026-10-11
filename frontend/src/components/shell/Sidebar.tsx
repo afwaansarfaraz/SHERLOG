@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
               {!isCollapsed && <span className="flex-1 truncate tracking-wide">{item.label}</span>}
               {!isCollapsed && item.badge !== undefined && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-semibold bg-[#3A1E18] text-vermilion border border-[#5E271D]">
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[#3A1E18] text-vermilion border border-[#5E271D]">
                   {item.badge}
                 </span>
               )}

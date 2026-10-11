@@ -57,6 +57,8 @@ export const ServiceMetricsChart: React.FC = () => {
         </CardTitle>
 
         <select
+          id="metric-time-window"
+          name="metricTimeWindow"
           value={timeWindow}
           onChange={(e) => setTimeWindow(e.target.value)}
           aria-label="Select metric time window"
@@ -97,7 +99,7 @@ export const ServiceMetricsChart: React.FC = () => {
       {/* Recharts LineChart */}
       <div className="h-56 sm:h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <LineChart data={data} margin={{ top: 10, right: 15, left: -5, bottom: 0 }}>
             <CartesianGrid stroke="#26211C" strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="timeLabel"
@@ -110,6 +112,7 @@ export const ServiceMetricsChart: React.FC = () => {
             <YAxis
               stroke="#5C564B"
               fontSize={11}
+              width={44}
               tickLine={false}
               axisLine={{ stroke: "#332D26" }}
               tickFormatter={formatYAxis}

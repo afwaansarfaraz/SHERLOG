@@ -51,7 +51,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     { key: "logs", label: "Logs" },
     { key: "metrics", label: "Metrics" },
     { key: "traces", label: "Traces" },
-    { key: "agent-activity", label: "Agent Activity" },
+    { key: "agent-activity", label: "Activity" },
   ]
 
   return (
@@ -77,18 +77,18 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
       {/* 2. Main Investigation Canvas (3 Columns matching reference layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Column (3 cols): Investigation Stepper */}
-        <div className="lg:col-span-3 flex flex-col">
+        {/* Left Column (4 cols on lg, 3 cols on xl): Investigation Stepper */}
+        <div className="lg:col-span-4 xl:col-span-3 flex flex-col">
           <ErrorBoundary moduleName="Investigation Timeline">
             <InvestigationProgress steps={visibleSteps} currentStepIndex={stepIndex} />
           </ErrorBoundary>
         </div>
 
-        {/* Center Column (5 or 6 cols): Tabs & Main Investigation Panels */}
-        <div className="lg:col-span-5 flex flex-col space-y-4">
+        {/* Center Column (8 cols on lg, 6 cols on xl): Tabs & Main Investigation Panels */}
+        <div className="lg:col-span-8 xl:col-span-6 flex flex-col space-y-4 min-w-0">
           <Card className="flex flex-col flex-1 p-4 sm:p-5">
             {/* Tabs Header */}
-            <div className="flex items-center gap-1.5 p-1 bg-ink/70 border border-ash/70 rounded-md overflow-x-auto mb-4 scrollbar-none">
+            <div className="flex items-center gap-1 sm:gap-1.5 p-1 bg-ink/70 border border-ash/70 rounded-md overflow-x-auto mb-4 scrollbar-none">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.key
 
@@ -96,7 +96,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
-                    className={`px-3 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors select-none ${
+                    className={`shrink-0 px-2.5 sm:px-3 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors select-none ${
                       isActive
                         ? "bg-soot text-bone border border-ash/80 shadow-sm"
                         : "text-dust hover:text-bone border border-transparent"
@@ -163,8 +163,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           </Card>
         </div>
 
-        {/* Right Column (4 cols): Live Agent Activity Stream matching reference image */}
-        <div className="lg:col-span-4 flex flex-col space-y-4">
+        {/* Right Column (12 cols on lg, 3 cols on xl): Live Agent Activity Stream */}
+        <div className="lg:col-span-12 xl:col-span-3 flex flex-col space-y-4 min-w-0">
           <ErrorBoundary moduleName="Live Activity Feed">
             <LiveActivityStream />
           </ErrorBoundary>

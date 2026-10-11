@@ -1,0 +1,46 @@
+{
+  "scenario_id": "SCN-009",
+  "fault_id": "dependency_timeout",
+  "name": "Dependency Timeout Under Retry Pressure",
+  "description": "Downstream payment processor delays triggering orders HTTP client timeout with retry storm",
+  "service": "orders",
+  "expected_root_cause": "downstream_dependency_timeout",
+  "expected_remediations": ["increase_downstream_timeout", "enable_circuit_breaker"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00009",
+    "title": "Payment gateway client timeouts and order failures",
+    "service": "orders",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "summary": "Orders service timed out attempting to communicate with payments downstream during confirmation retry",
+    "source": "alertmanager",
+    "affected_endpoints": ["POST /orders"],
+    "metadata": {
+      "alertname": "DependencyTimeout"
+    }
+  },
+  "evidence": [
+    {
+      "source": "metric",
+      "name": "dependency_timeouts_total",
+      "value": 32.0,
+      "service": "orders",
+      "description": "32 timeouts recorded on payments dependency"
+    },
+    {
+      "source": "trace",
+      "name": "http_payments_timeout_span",
+      "value": 504,
+      "service": "orders",
+      "description": "HTTP 504 Gateway Timeout returned from downstream"
+    },
+    {
+      "source": "log",
+      "name": "orders_app_log",
+      "value": "Downstream dependency timeout calling Payments service for Order #882: Payment service timed out after 2.0s",
+      "service": "orders",
+      "description": "Timeout stack trace in orders logs"
+    }
+  ]
+}

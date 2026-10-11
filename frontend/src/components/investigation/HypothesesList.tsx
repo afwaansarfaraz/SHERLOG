@@ -48,7 +48,7 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1.5">
         <h4 className="text-xs font-semibold text-bone uppercase tracking-wider font-mono">
           Top Hypotheses
         </h4>
@@ -71,13 +71,13 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
                   : "border-ash/70 hover:border-ash hover:bg-ink/60"
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 {/* Left: Rank & Title */}
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
                   <div className="w-5 h-5 rounded-full bg-soot border border-ash flex items-center justify-center font-mono text-xs font-semibold text-dust shrink-0 mt-0.5">
                     {hyp.rank}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold text-bone leading-tight">{hyp.title}</div>
                     <div className="text-[11px] text-dust mt-0.5 leading-snug">
                       {hyp.description}
@@ -86,10 +86,10 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
                 </div>
 
                 {/* Right: Progress Bar & Likelihood Badge matching reference image */}
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0 pt-0.5 self-end sm:self-auto">
                   {/* Progress Bar & Percentage */}
                   <div className="flex items-center gap-2">
-                    <div className="w-20 sm:w-28 h-1.5 bg-[#25201B] rounded-full overflow-hidden">
+                    <div className="w-16 sm:w-20 h-1.5 bg-[#25201B] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${getProgressBarColor(
                           hyp.likelihood
@@ -97,7 +97,7 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
                         style={{ width: `${hyp.score}%` }}
                       />
                     </div>
-                    <span className="font-mono text-xs text-bone font-medium w-8 text-right">
+                    <span className="font-mono text-xs text-bone font-medium w-7 text-right">
                       {hyp.score}%
                     </span>
                   </div>
@@ -109,9 +109,11 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
 
               {/* Verification Callout if verified */}
               {hyp.verified && hyp.verificationReason && (
-                <div className="mt-2.5 pt-2 border-t border-ash/50 flex items-center gap-2 text-[11px] text-verdigris font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-verdigris shrink-0" />
-                  <span className="truncate">{hyp.verificationReason}</span>
+                <div className="mt-2.5 pt-2 border-t border-ash/50 flex items-start gap-2 text-[11px] text-verdigris font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-verdigris shrink-0 mt-1" />
+                  <span className="break-words [word-break:break-word] leading-normal flex-1">
+                    {hyp.verificationReason}
+                  </span>
                 </div>
               )}
             </div>

@@ -60,7 +60,7 @@ All visual components must use the exact Sherlog "Case File" palette. Do not int
 ### Hierarchy Scale
 | Level | Font Family | Size | Weight | Color | Usage |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Display / Page Title** | Sans-serif | `1.5rem` (24px) | Semibold (600) | `Bone` | "Good evening, Aarav", Incident Name |
+| **Display / Page Title** | Sans-serif | `1.5rem` (24px) | Semibold (600) | `Bone` | "Good evening, Afwaan", Incident Name |
 | **Section Header** | Sans-serif | `1.125rem` (18px) | Medium (500) | `Bone` | Card titles ("Active Incidents", "System Health") |
 | **Subheadings / Group** | Sans-serif | `0.875rem` (14px) | Medium (500) | `Bone` | "Top Hypotheses", "Live Agent Activity" |
 | **Body Text** | Sans-serif | `0.875rem` (14px) | Normal (400) | `Bone` / `Dust` | Descriptions, incident notes |
@@ -90,7 +90,7 @@ All visual components must use the exact Sherlog "Case File" palette. Do not int
 - **Top Header Bar**:
   - Global Search: `Search incidents, services, logs...` with `⌘ K` keyboard shortcut pill.
   - Operational Status: `● System Operational` with Verdigris indicator dot.
-  - User Pill: Avatar initials (`AS`), user full name (`Aarav Sharma`), role (`admin`).
+  - User Pill: Avatar initials (`AF`), user full name (`Afwaan`), role (`admin`).
 
 ### 2. Overview KPI Cards (4-Column Grid)
 - **Active Incidents**: Count (`3`), label, alert icon in Vermilion (`#E4572E`).

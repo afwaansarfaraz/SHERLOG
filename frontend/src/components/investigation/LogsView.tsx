@@ -32,10 +32,10 @@ export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
   return (
     <div className="space-y-3 font-mono text-xs">
       {/* Search & Tool Query Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2.5 rounded bg-ink/70 border border-ash">
-        <div className="flex items-center gap-2 text-dust text-[11px] truncate">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded bg-ink/70 border border-ash">
+        <div className="flex items-center gap-2 text-dust text-[11px] min-w-0 flex-1">
           <FileText className="w-3.5 h-3.5 text-amber shrink-0" />
-          <span className="text-bone">Tool: search_logs</span>
+          <span className="text-bone shrink-0">Tool: search_logs</span>
           <span className="truncate">
             query: service=&apos;orders&apos; pattern=&apos;pool|timeout|error&apos; (window: 15m)
           </span>
@@ -44,6 +44,8 @@ export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
         <div className="flex items-center gap-2 bg-soot border border-ash rounded px-2 py-1 shrink-0">
           <Search className="w-3 h-3 text-dust" />
           <input
+            id="logs-filter-input"
+            name="logsFilter"
             type="text"
             placeholder="Filter logs..."
             value={filter}
@@ -63,25 +65,25 @@ export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
       </div>
 
       {/* Log Feed */}
-      <div className="rounded-md bg-ink border border-ash overflow-hidden divide-y divide-ash/40 max-h-96 overflow-y-auto">
+      <div className="rounded-md bg-ink border border-ash overflow-hidden divide-y divide-ash/40 max-h-96 overflow-y-auto custom-scrollbar">
         {filteredLogs.map((log) => (
           <div
             key={log.id}
             className="p-2.5 hover:bg-soot/40 transition-colors flex items-start gap-2.5 leading-relaxed"
           >
-            <span className="text-dust text-[11px] shrink-0">{log.timestamp}</span>
+            <span className="text-dust text-[11px] shrink-0 font-mono">{log.timestamp}</span>
 
             <span
-              className={`px-1.5 py-0.2 rounded text-[10px] font-semibold shrink-0 uppercase ${getLevelStyle(
+              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 uppercase ${getLevelStyle(
                 log.level
               )}`}
             >
               {log.level}
             </span>
 
-            <span className="text-dust text-[11px] shrink-0">[{log.service}]</span>
+            <span className="text-dust text-[11px] shrink-0 font-mono">[{log.service}]</span>
 
-            <span className="text-bone/90 flex-1 break-all select-text font-mono text-[11px]">
+            <span className="text-bone/90 flex-1 break-words [word-break:break-word] select-text font-mono text-[11px]">
               {log.message}
             </span>
 

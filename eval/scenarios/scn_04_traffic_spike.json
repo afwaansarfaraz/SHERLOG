@@ -1,0 +1,40 @@
+{
+  "scenario_id": "SCN-004",
+  "fault_id": "traffic_spike",
+  "name": "API Gateway Sudden Traffic Surge",
+  "description": "High concurrency load flooding API gateway checkout endpoint causing resource saturation",
+  "service": "api",
+  "expected_root_cause": "sudden_traffic_spike",
+  "expected_remediations": ["apply_rate_limiting_and_scale", "auto_scale_service_instances"],
+  "expect_insufficient_evidence": false,
+  "incident": {
+    "id": "INC-00004",
+    "title": "Sudden traffic spike on API gateway checkout endpoint",
+    "service": "api",
+    "severity": "HIGH",
+    "status": "OPEN",
+    "summary": "High concurrency load against API gateway checkout endpoint causing thread exhaustion",
+    "source": "alertmanager",
+    "affected_endpoints": ["POST /api/v1/checkout"],
+    "metadata": {
+      "alertname": "TrafficSpikeDetected",
+      "promql": "rate(http_requests_total[1m]) > 100"
+    }
+  },
+  "evidence": [
+    {
+      "source": "metric",
+      "name": "http_requests_total_rate",
+      "value": 175.0,
+      "service": "api",
+      "description": "Request rate surged from 10 req/s to 175 req/s"
+    },
+    {
+      "source": "log",
+      "name": "api_gateway_log",
+      "value": "Sudden traffic spike: high concurrency load exceeding capacity on /checkout",
+      "service": "api",
+      "description": "API Gateway capacity log warning"
+    }
+  ]
+}

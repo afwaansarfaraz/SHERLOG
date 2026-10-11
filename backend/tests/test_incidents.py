@@ -1,11 +1,22 @@
-"""Automated tests for incident ingestion, validation, and retrieval."""
+"""Automated tests for incident persistence, retrieval, and error handling."""
 
 import pytest
+from unittest.mock import MagicMock
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from backend.app.main import app
+from backend.app.config import settings
+from backend.app.api.incidents import get_repository
+from backend.app.schemas.incident import IncidentCreate, IncidentSeverity
+from backend.app.storage.postgres import PostgresIncidentRepository
+from backend.app.db.session import SessionLocal
 
 
 def test_ingest_incident_success_complete_payload(client: TestClient):
-    """POST /api/incidents with full valid payload should return 201 Created with assigned ID."""
+    """POST /api/incidents with full valid payload should persist and return 201 Created."""
     payload = {
         "title": "Database connection pool exhaustion",
         "service": "orders",
@@ -107,7 +118,7 @@ def test_ingest_incident_blank_whitespace_fields(client: TestClient):
 
 
 def test_ingest_incident_short_length_bounds(client: TestClient):
-    """POST /api/incidents with title shorter than 3 chars or summary shorter than 5 chars should return 422."""
+    """POST /api/incidents with title < 3 chars or summary < 5 chars should return 422."""
     payload_short_title = {
         "title": "ab",
         "service": "orders",
@@ -188,3 +199,126 @@ def test_list_incidents(client: TestClient):
     # Verify latest first
     assert items[0]["id"] == "INC-00002"
     assert items[1]["id"] == "INC-00001"
+
+
+def test_database_error_handling_on_ingest(client: TestClient):
+    """Database failure during ingestion must return HTTP 500 without leaking credentials."""
+    mock_repo = MagicMock(spec=PostgresIncidentRepository)
+    mock_repo.save.side_effect = OperationalError("connection to postgresql://postgres:secret@db failed", None, None)
+
+    app.dependency_overrides[get_repository] = lambda: mock_repo
+    try:
+        response = client.post(
+            "/api/incidents",
+            json={
+                "title": "Error test incident",
+                "service": "orders",
+                "severity": "HIGH",
+                "summary": "Valid summary to trigger database error handling.",
+            },
+        )
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert "database persistence error" in detail.lower()
+        # Ensure credentials/connection strings are NEVER leaked
+        assert "secret" not in detail
+        assert "postgres" not in detail
+    finally:
+        app.dependency_overrides.pop(get_repository, None)
+
+
+def test_database_error_handling_on_retrieve(client: TestClient):
+    """Database failure during retrieval must return HTTP 500 with safe error details."""
+    mock_repo = MagicMock(spec=PostgresIncidentRepository)
+    mock_repo.get_by_id.side_effect = SQLAlchemyError("Query execution failed")
+    mock_repo.list_all.side_effect = SQLAlchemyError("Connection reset by peer")
+
+    app.dependency_overrides[get_repository] = lambda: mock_repo
+    try:
+        # Test get_by_id failure
+        resp_get = client.get("/api/incidents/INC-00001")
+        assert resp_get.status_code == 500
+        assert "database error" in resp_get.json()["detail"].lower()
+
+        # Test list_all failure
+        resp_list = client.get("/api/incidents")
+        assert resp_list.status_code == 500
+        assert "database error" in resp_list.json()["detail"].lower()
+    finally:
+        app.dependency_overrides.pop(get_repository, None)
+
+
+def test_incident_idempotency_with_fingerprint(client: TestClient):
+    """Duplicate alerts with identical fingerprint must return existing incident without creating duplicates."""
+    payload = {
+        "title": "CPU threshold exceeded",
+        "service": "api",
+        "severity": "HIGH",
+        "summary": "CPU utilization exceeded 95% threshold across all workers.",
+        "fingerprint": "alert_fp_cpu_high_95",
+    }
+
+    # First ingestion
+    resp1 = client.post("/api/incidents", json=payload)
+    assert resp1.status_code == 201
+    inc1 = resp1.json()
+    id1 = inc1["id"]
+
+    # Duplicate ingestion with same fingerprint
+    resp2 = client.post("/api/incidents", json=payload)
+    assert resp2.status_code == 201
+    inc2 = resp2.json()
+    id2 = inc2["id"]
+
+    # Must return the SAME incident ID
+    assert id1 == id2
+
+    # Total incident count must remain 1
+    list_resp = client.get("/api/incidents")
+    assert len(list_resp.json()) == 1
+
+
+def test_postgres_live_persistence():
+    """Verify live persistence and sequence operation directly against the running PostgreSQL database."""
+    import socket
+
+    # Fast reachability check to skip instantly if PostgreSQL is not running
+    try:
+        with socket.create_connection(("127.0.0.1", 5432), timeout=0.5):
+            pass
+    except Exception as exc:
+        pytest.skip(
+            f"PostgreSQL container is not reachable at 127.0.0.1:5432 ({exc}). "
+            "Start the container via 'docker compose up -d postgres' to run live persistence integration tests."
+        )
+
+    db: Session = SessionLocal()
+    try:
+        repo = PostgresIncidentRepository(db)
+
+        # Create incident
+        new_inc = IncidentCreate(
+            title="Live PostgreSQL Verification Incident",
+            service="orders",
+            severity=IncidentSeverity.CRITICAL,
+            summary="Testing direct persistence in live PostgreSQL docker container.",
+            source="pytest-live-test",
+            metadata={"test_run": True},
+        )
+        saved = repo.save(new_inc)
+        assert saved.id.startswith("INC-")
+
+        # Query back from PostgreSQL
+        fetched = repo.get_by_id(saved.id)
+        assert fetched is not None
+        assert fetched.id == saved.id
+        assert fetched.title == "Live PostgreSQL Verification Incident"
+        assert fetched.service == "orders"
+        assert fetched.severity == IncidentSeverity.CRITICAL
+
+        # Clean up the specific test incident
+        from backend.app.db.models.incident import IncidentModel
+        db.query(IncidentModel).filter(IncidentModel.id == saved.id).delete()
+        db.commit()
+    finally:
+        db.close()
