@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from backend.app.schemas.incident import IncidentCreate, IncidentResponse
 from backend.app.db.session import get_db
 from backend.app.storage.postgres import PostgresIncidentRepository
+from backend.app.queue.publisher import IncidentPublisher, get_publisher
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,12 @@ def get_repository(db: Session = Depends(get_db)) -> PostgresIncidentRepository:
 def ingest_incident(
     incident_in: IncidentCreate,
     repo: PostgresIncidentRepository = Depends(get_repository),
+    publisher: IncidentPublisher = Depends(get_publisher),
 ) -> IncidentResponse:
-    """Validate and ingest an incident alert into persistent storage."""
+    """Validate and ingest an incident alert into persistent storage, then queue to Redis Streams."""
+    # 1. Primary persistence in PostgreSQL
     try:
         saved_incident = repo.save(incident_in)
-        return saved_incident
     except SQLAlchemyError as db_err:
         logger.error("Database error during incident ingestion: %s", str(db_err), exc_info=True)
         raise HTTPException(
@@ -47,6 +49,41 @@ def ingest_incident(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process incident ingestion: {str(exc)}",
         )
+
+    # 2. Asynchronous Queue dispatch to Redis Streams (non-blocking for DB persistence)
+    try:
+        severity_str = (
+            saved_incident.severity.value
+            if hasattr(saved_incident.severity, "value")
+            else str(saved_incident.severity)
+        )
+        msg_id = publisher.publish_incident(
+            incident_id=saved_incident.id,
+            service=saved_incident.service,
+            severity=severity_str,
+            fingerprint=saved_incident.fingerprint,
+            metadata=saved_incident.metadata,
+        )
+        if msg_id:
+            logger.info("Incident %s enqueued to Redis Stream (msg ID: %s)", saved_incident.id, msg_id)
+            repo.update_queue_status(saved_incident.id, "ENQUEUED", {"stream_id": msg_id})
+        else:
+            logger.warning(
+                "Incident %s preserved in PostgreSQL but Redis Stream publish was unavailable. "
+                "Marking queue_status as PUBLISH_FAILED for subsequent backfill.",
+                saved_incident.id,
+            )
+            repo.update_queue_status(saved_incident.id, "PUBLISH_FAILED")
+    except Exception as q_exc:
+        logger.error(
+            "Unexpected error enqueueing incident %s to Redis Streams: %s. Persistence is preserved.",
+            saved_incident.id,
+            str(q_exc),
+            exc_info=True,
+        )
+        repo.update_queue_status(saved_incident.id, "PUBLISH_FAILED", {"error": str(q_exc)})
+
+    return saved_incident
 
 
 @router.get(

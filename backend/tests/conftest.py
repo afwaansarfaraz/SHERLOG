@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.app.main import app
-from backend.app.db.base import Base
+from backend.app.db.models import Base, IncidentModel
 from backend.app.db.session import get_db
 from backend.app.storage.memory import incident_repo
 
@@ -39,6 +39,12 @@ def setup_and_teardown_test_db():
     Base.metadata.drop_all(bind=test_engine)
     incident_repo.clear()
     app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture
+def db_session_factory():
+    """Session factory for the isolated test database."""
+    return TestingSessionLocal
 
 
 @pytest.fixture

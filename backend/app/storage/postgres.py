@@ -4,7 +4,7 @@ Provides persistence, querying, and idempotency guarantees using SQLAlchemy sess
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -95,6 +95,52 @@ class PostgresIncidentRepository:
         except SQLAlchemyError:
             self.db.rollback()
             raise
+
+    def update_status(
+        self,
+        incident_id: str,
+        status: Optional[Union[IncidentStatus, str]] = None,
+        metadata_updates: Optional[Dict[str, Any]] = None,
+    ) -> Optional[IncidentResponse]:
+        """Update incident lifecycle status and optionally merge metadata updates."""
+        try:
+            record = (
+                self.db.query(IncidentModel)
+                .filter(IncidentModel.id == incident_id)
+                .first()
+            )
+            if not record:
+                return None
+
+            now_utc = datetime.now(timezone.utc)
+            record.updated_at = now_utc
+
+            if status is not None:
+                record.status = status.value if hasattr(status, "value") else str(status)
+
+            if metadata_updates:
+                current_meta = dict(record.extra_metadata or {})
+                current_meta.update(metadata_updates)
+                record.extra_metadata = current_meta
+
+            self.db.commit()
+            self.db.refresh(record)
+            return record.to_pydantic()
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
+    def update_queue_status(
+        self,
+        incident_id: str,
+        queue_status: str,
+        extra_info: Optional[Dict[str, Any]] = None,
+    ) -> Optional[IncidentResponse]:
+        """Record queue dispatch or delivery state in incident metadata."""
+        meta_updates: Dict[str, Any] = {"queue_status": queue_status}
+        if extra_info:
+            meta_updates.update(extra_info)
+        return self.update_status(incident_id, status=None, metadata_updates=meta_updates)
 
     def clear(self) -> None:
         """Clear all stored incidents (for isolated test teardowns)."""
