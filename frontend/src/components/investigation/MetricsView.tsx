@@ -8,12 +8,29 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
-import { Activity, Database, Layers, ArrowUpRight } from "lucide-react"
+import { Activity, Database, Layers, ArrowUpRight, AlertTriangle, RefreshCw, AlertCircle } from "lucide-react"
 import { Card } from "../common/Card"
+import { Button } from "../common/Button"
+import { MetricsChartSkeleton } from "../common/Skeletons"
+import { EmptyState } from "../common/EmptyState"
 
 type MetricFilter = "all" | "db-pool" | "latency"
 
-export const MetricsView: React.FC = () => {
+export interface MetricsViewProps {
+  isLoading?: boolean
+  error?: string | null
+  isEmpty?: boolean
+  isPartial?: boolean
+  onRetry?: () => void
+}
+
+export const MetricsView: React.FC<MetricsViewProps> = ({
+  isLoading = false,
+  error = null,
+  isEmpty = false,
+  isPartial = false,
+  onRetry,
+}) => {
   const [selectedMetric, setSelectedMetric] = useState<MetricFilter>("all")
 
   // Metric 1: DB Pool Saturation Time Series
@@ -38,11 +55,75 @@ export const MetricsView: React.FC = () => {
     { time: "19:44", p95: 1250 },
   ]
 
+  if (isLoading) {
+    return <MetricsChartSkeleton count={2} />
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="p-6 rounded-lg bg-soot border border-ash/80 space-y-4 text-center"
+      >
+        <div className="w-10 h-10 rounded-lg bg-[#2D1618] border border-[#4F2025] text-vermilion flex items-center justify-center mx-auto">
+          <AlertCircle className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-bone font-sans">
+            Prometheus Telemetry Provider Unavailable
+          </h4>
+          <p className="text-xs text-dust max-w-md mx-auto mt-1 leading-relaxed">
+            {error || "Failed to query Prometheus metric endpoints. Unaffected telemetry panels remain active."}
+          </p>
+        </div>
+        {onRetry && (
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            <span>Retry Prometheus Query</span>
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  if (isEmpty) {
+    return (
+      <EmptyState
+        variant="no-telemetry"
+        title="No Prometheus Metrics in Time Window"
+        description="The PromQL query returned zero data points between 19:30 and 19:44."
+        actionLabel={onRetry ? "Rerun Query" : undefined}
+        onAction={onRetry}
+      />
+    )
+  }
+
   const showDbPool = selectedMetric === "all" || selectedMetric === "db-pool"
   const showLatency = selectedMetric === "all" || selectedMetric === "latency"
 
   return (
     <div className="space-y-4">
+      {/* Partial Data Notice if applicable */}
+      {isPartial && (
+        <div
+          role="status"
+          className="flex items-center justify-between p-2.5 rounded bg-[#271E14] border border-[#4A391A] text-xs font-mono text-amber"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Partial Telemetry: One or more Prometheus target scrapes timed out.</span>
+          </div>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="text-[11px] underline hover:text-bone cursor-pointer"
+            >
+              Retry Scrape
+            </button>
+          )}
+        </div>
+      )}
+
       {/* PromQL Query Header & Filter Bar */}
       <div className="p-2.5 sm:p-3 rounded bg-ink/70 border border-ash font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
         <div className="flex items-center gap-2 text-dust min-w-0">
@@ -105,7 +186,7 @@ export const MetricsView: React.FC = () => {
         </span>
       </div>
 
-      {/* Stacked Telemetry Charts (Full Width to Prevent Text/Label Squeeze) */}
+      {/* Stacked Telemetry Charts */}
       <div className="flex flex-col gap-4">
         {/* Chart 1: DB Pool Saturation */}
         {showDbPool && (

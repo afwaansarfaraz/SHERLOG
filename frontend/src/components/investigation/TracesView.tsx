@@ -1,12 +1,66 @@
 import React from "react"
-import { GitCommit, AlertCircle, CheckCircle2 } from "lucide-react"
+import { GitCommit, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react"
+import { TracesWaterfallSkeleton } from "../common/Skeletons"
+import { EmptyState } from "../common/EmptyState"
+import { Button } from "../common/Button"
 import type { TraceSpan } from "../../types"
 
 interface TracesViewProps {
   traces: TraceSpan[]
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
-export const TracesView: React.FC<TracesViewProps> = ({ traces }) => {
+export const TracesView: React.FC<TracesViewProps> = ({
+  traces,
+  isLoading = false,
+  error = null,
+  onRetry,
+}) => {
+  if (isLoading) {
+    return <TracesWaterfallSkeleton spanCount={5} />
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="p-6 rounded-lg bg-soot border border-ash/80 space-y-4 text-center font-sans"
+      >
+        <div className="w-10 h-10 rounded-lg bg-[#2D1618] border border-[#4F2025] text-vermilion flex items-center justify-center mx-auto">
+          <AlertCircle className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-bone">
+            Jaeger Distributed Trace Provider Unavailable
+          </h4>
+          <p className="text-xs text-dust max-w-md mx-auto mt-1 leading-relaxed">
+            {error || "Unable to retrieve trace spans for trace_id 8f4a210bc931e4. Metrics and logs are still available."}
+          </p>
+        </div>
+        {onRetry && (
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            <span>Retry Jaeger Trace</span>
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  if (traces.length === 0) {
+    return (
+      <EmptyState
+        variant="no-telemetry"
+        title="No Trace Spans Recorded"
+        description="Jaeger returned zero spans for the requested distributed trace context."
+        actionLabel={onRetry ? "Retry Fetch" : undefined}
+        onAction={onRetry}
+      />
+    )
+  }
+
   const maxDuration = Math.max(...traces.map((t) => t.startOffsetMs + t.durationMs), 1240)
 
   return (

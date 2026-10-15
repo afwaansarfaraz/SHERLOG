@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { ChevronDown, ChevronRight, CheckCircle2, XCircle, MinusCircle, Code2 } from "lucide-react"
 import type { EvidenceItem, EvidencePolarity } from "../../types"
+import { EmptyState } from "../common/EmptyState"
 
 interface EvidenceDetailViewProps {
   evidence: EvidenceItem[]
@@ -72,69 +73,79 @@ export const EvidenceDetailView: React.FC<EvidenceDetailViewProps> = ({
 
       {/* Evidence Items List */}
       <div className="space-y-2.5">
-        {filtered.map((item) => {
-          const isExpanded = expandedIds.has(item.id)
+        {filtered.length === 0 ? (
+          <EmptyState
+            variant={polarityFilter === "ALL" ? "no-evidence" : "no-search-results"}
+            title={polarityFilter === "ALL" ? "No Investigation Evidence Gathered" : `No ${polarityFilter} Evidence Items`}
+            description={polarityFilter === "ALL" ? "Awaiting telemetry gathering steps." : `No evidence matching polarity "${polarityFilter}".`}
+            actionLabel={polarityFilter !== "ALL" ? "Show All Evidence" : undefined}
+            onAction={polarityFilter !== "ALL" ? () => setPolarityFilter("ALL") : undefined}
+          />
+        ) : (
+          filtered.map((item) => {
+            const isExpanded = expandedIds.has(item.id)
 
-          return (
-            <div
-              key={item.id}
-              className="rounded-md bg-ink/40 border border-ash/70 hover:border-ash overflow-hidden transition-all text-xs"
-            >
+            return (
               <div
-                onClick={() => onToggleExpand(item.id)}
-                className="p-3 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-ink/60 transition-colors"
+                key={item.id}
+                className="rounded-md bg-ink/40 border border-ash/70 hover:border-ash overflow-hidden transition-all text-xs"
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <span className="text-dust shrink-0">
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                  </span>
-                  <div className="truncate min-w-0">
-                    <span className="font-semibold text-bone">{item.title}</span>
-                    <span className="text-dust font-mono text-[11px] ml-2 hidden sm:inline">
-                      ({item.source})
+                <div
+                  onClick={() => onToggleExpand(item.id)}
+                  className="p-3 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-ink/60 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <span className="text-dust shrink-0">
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
                     </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5 shrink-0">
-                  {item.delta && (
-                    <span className="font-mono text-amber text-[11px]">{item.delta}</span>
-                  )}
-                  {getPolarityBadge(item.polarity)}
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="px-4 pb-3.5 pt-1 space-y-2.5 border-t border-ash/40 bg-[#161311]">
-                  <p className="text-dust text-xs leading-relaxed">{item.summary}</p>
-
-                  {item.rawSnippet && (
-                    <div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-dust mb-1">
-                        <Code2 className="w-3 h-3 text-amber" />
-                        <span>Source Telemetry Output (Sanitized &amp; Delimited)</span>
-                      </div>
-                      <pre className="p-2.5 rounded bg-ink border border-ash text-[11px] font-mono text-bone overflow-x-auto whitespace-pre leading-relaxed select-text custom-scrollbar">
-                        {item.rawSnippet}
-                      </pre>
+                    <div className="truncate min-w-0">
+                      <span className="font-semibold text-bone">{item.title}</span>
+                      <span className="text-dust font-mono text-[11px] ml-2 hidden sm:inline">
+                        ({item.source})
+                      </span>
                     </div>
-                  )}
+                  </div>
 
-                  <div className="flex items-center justify-between text-[10px] font-mono text-dust/70 pt-1">
-                    <span>Captured at: {item.timestamp}</span>
-                    <span>
-                      Deterministic Weight: {item.weight > 0 ? `+${item.weight}` : item.weight} pts
-                    </span>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    {item.delta && (
+                      <span className="font-mono text-amber text-[11px]">{item.delta}</span>
+                    )}
+                    {getPolarityBadge(item.polarity)}
                   </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                {isExpanded && (
+                  <div className="px-4 pb-3.5 pt-1 space-y-2.5 border-t border-ash/40 bg-[#161311]">
+                    <p className="text-dust text-xs leading-relaxed">{item.summary}</p>
+
+                    {item.rawSnippet && (
+                      <div>
+                        <div className="flex items-center gap-1.5 text-[10px] font-mono text-dust mb-1">
+                          <Code2 className="w-3 h-3 text-amber" />
+                          <span>Source Telemetry Output (Sanitized &amp; Delimited)</span>
+                        </div>
+                        <pre className="p-2.5 rounded bg-ink border border-ash text-[11px] font-mono text-bone overflow-x-auto whitespace-pre leading-relaxed select-text custom-scrollbar">
+                          {item.rawSnippet}
+                        </pre>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-[10px] font-mono text-dust/70 pt-1">
+                      <span>Captured at: {item.timestamp}</span>
+                      <span>
+                        Deterministic Weight: {item.weight > 0 ? `+${item.weight}` : item.weight} pts
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

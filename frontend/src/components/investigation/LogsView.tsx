@@ -1,13 +1,67 @@
 import React, { useState } from "react"
-import { Search, ShieldAlert, FileText } from "lucide-react"
+import { Search, ShieldAlert, FileText, AlertCircle, RefreshCw } from "lucide-react"
+import { LogsViewSkeleton } from "../common/Skeletons"
+import { EmptyState } from "../common/EmptyState"
+import { Button } from "../common/Button"
 import type { InvestigationLogEntry } from "../../types"
 
 interface LogsViewProps {
   logs: InvestigationLogEntry[]
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
-export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
+export const LogsView: React.FC<LogsViewProps> = ({
+  logs,
+  isLoading = false,
+  error = null,
+  onRetry,
+}) => {
   const [filter, setFilter] = useState("")
+
+  if (isLoading) {
+    return <LogsViewSkeleton rowCount={6} />
+  }
+
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="p-6 rounded-lg bg-soot border border-ash/80 space-y-4 text-center"
+      >
+        <div className="w-10 h-10 rounded-lg bg-[#2D1618] border border-[#4F2025] text-vermilion flex items-center justify-center mx-auto">
+          <AlertCircle className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-bone font-sans">
+            Loki Log Telemetry Engine Unavailable
+          </h4>
+          <p className="text-xs text-dust max-w-md mx-auto mt-1 leading-relaxed">
+            {error || "Failed to stream log lines from the Loki cluster. Upstream metrics and traces remain usable."}
+          </p>
+        </div>
+        {onRetry && (
+          <Button variant="secondary" size="sm" onClick={onRetry}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            <span>Retry Log Stream</span>
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  if (logs.length === 0) {
+    return (
+      <EmptyState
+        variant="no-telemetry"
+        title="No Log Records Found"
+        description="The Loki log query returned zero records for service 'orders' in the 15-minute window."
+        actionLabel={onRetry ? "Refetch Logs" : undefined}
+        onAction={onRetry}
+      />
+    )
+  }
 
   const filteredLogs = logs.filter(
     (l) =>
@@ -97,7 +151,13 @@ export const LogsView: React.FC<LogsViewProps> = ({ logs }) => {
 
         {filteredLogs.length === 0 && (
           <div className="p-6 text-center text-dust text-xs">
-            No log lines matching pattern &apos;{filter}&apos;
+            <EmptyState
+              variant="no-search-results"
+              searchQuery={filter}
+              actionLabel="Clear Filter"
+              onAction={() => setFilter("")}
+              className="bg-transparent border-0"
+            />
           </div>
         )}
       </div>

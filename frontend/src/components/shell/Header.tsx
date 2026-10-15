@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { Search, Bell, RefreshCw, Menu, ChevronDown, User, ShieldAlert, LogOut } from "lucide-react"
+import { Search, Bell, RefreshCw, Menu, ChevronDown, User, ShieldAlert, LogOut, Sparkles } from "lucide-react"
 import { NotificationsPopover } from "./NotificationsPopover"
 
 interface HeaderProps {
@@ -125,6 +125,17 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <ShieldAlert className="w-3.5 h-3.5 text-amber" /> RBAC Permissions
               </button>
+              {import.meta.env.DEV && (
+                <button
+                  onClick={() => {
+                    setIsUserMenuOpen(false)
+                    window.location.hash = "dev/hardening"
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-amber hover:text-bone hover:bg-ink/60 transition-colors text-left font-mono text-[11px]"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Dev Hardening Showcase
+                </button>
+              )}
               <div className="border-t border-ash/70 my-1" />
               <button
                 onClick={() => setIsUserMenuOpen(false)}
