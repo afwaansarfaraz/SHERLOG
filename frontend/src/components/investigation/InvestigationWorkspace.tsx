@@ -4,6 +4,7 @@ import { InvestigationProgress } from "./InvestigationProgress"
 import { HypothesesList } from "./HypothesesList"
 import { EvidenceSummaryCards } from "./EvidenceSummaryCards"
 import { EvidenceDetailView } from "./EvidenceDetailView"
+import { KnowledgeSourcesUsed } from "./KnowledgeSourcesUsed"
 import { LogsView } from "./LogsView"
 import { MetricsView } from "./MetricsView"
 import { TracesView } from "./TracesView"
@@ -13,15 +14,20 @@ import { ConfigDiffModal } from "./ConfigDiffModal"
 import { Card } from "../common/Card"
 import { ErrorBoundary } from "../common/ErrorBoundary"
 import { useInvestigation } from "../../hooks/useInvestigation"
+import { useToast } from "../../hooks/useToast"
 import type { InvestigationTab } from "../../types"
 
 interface InvestigationWorkspaceProps {
+  incidentId?: string
   onBackToOverview: () => void
 }
 
 export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
+  incidentId,
   onBackToOverview,
 }) => {
+  const { success: toastSuccess, error: toastError } = useToast()
+
   const {
     data,
     activeTab,
@@ -38,12 +44,33 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     approvalStatus,
     approveRemediation,
     rejectRemediation,
+    isSubmitting,
+    submitError,
+    auditLog,
     isDiffModalOpen,
     setIsDiffModalOpen,
     resetSimulation,
     completeSimulation,
     togglePlaySimulation,
-  } = useInvestigation()
+  } = useInvestigation(incidentId)
+
+  const handleApprove = async (reason?: string) => {
+    try {
+      await approveRemediation(reason)
+      toastSuccess("Remediation proposal approved and audit record persisted.")
+    } catch (err: any) {
+      toastError(err?.message || "Failed to approve remediation proposal.")
+    }
+  }
+
+  const handleReject = async (reason?: string) => {
+    try {
+      await rejectRemediation(reason)
+      toastSuccess("Remediation proposal rejected and audit record persisted.")
+    } catch (err: any) {
+      toastError(err?.message || "Failed to reject remediation proposal.")
+    }
+  }
 
   const tabs: { key: InvestigationTab; label: string }[] = [
     { key: "hypotheses", label: "Hypotheses" },
@@ -120,6 +147,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     />
                   </ErrorBoundary>
 
+                  {/* Section: Knowledge Sources Used */}
+                  <ErrorBoundary moduleName="Knowledge Sources Used">
+                    <KnowledgeSourcesUsed
+                      sources={data.retrievedSources}
+                      retrievalStatus={data.retrievalStatus}
+                      incidentService={data.service}
+                    />
+                  </ErrorBoundary>
+
                   <ErrorBoundary moduleName="Evidence Summary">
                     <EvidenceSummaryCards onViewAllEvidence={() => setActiveTab("evidence")} />
                   </ErrorBoundary>
@@ -127,13 +163,23 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               )}
 
               {activeTab === "evidence" && (
-                <ErrorBoundary moduleName="Evidence Detail">
-                  <EvidenceDetailView
-                    evidence={visibleEvidence}
-                    expandedIds={expandedEvidenceIds}
-                    onToggleExpand={toggleEvidenceExpanded}
-                  />
-                </ErrorBoundary>
+                <div className="space-y-5">
+                  <ErrorBoundary moduleName="Evidence Detail">
+                    <EvidenceDetailView
+                      evidence={visibleEvidence}
+                      expandedIds={expandedEvidenceIds}
+                      onToggleExpand={toggleEvidenceExpanded}
+                    />
+                  </ErrorBoundary>
+
+                  <ErrorBoundary moduleName="Knowledge Sources Used">
+                    <KnowledgeSourcesUsed
+                      sources={data.retrievedSources}
+                      retrievalStatus={data.retrievalStatus}
+                      incidentService={data.service}
+                    />
+                  </ErrorBoundary>
+                </div>
               )}
 
               {activeTab === "logs" && (
@@ -176,8 +222,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         <RemediationDock
           remediation={data.remediation}
           approvalStatus={approvalStatus}
-          onApprove={approveRemediation}
-          onReject={rejectRemediation}
+          isSubmitting={isSubmitting}
+          submitError={submitError}
+          auditLog={auditLog}
+          onApprove={handleApprove}
+          onReject={handleReject}
           onOpenDiff={() => setIsDiffModalOpen(true)}
         />
       </ErrorBoundary>

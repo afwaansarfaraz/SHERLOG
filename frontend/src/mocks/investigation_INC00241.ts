@@ -349,6 +349,45 @@ export const mockRemediationProposal: RemediationProposal = {
   status: "AWAITING_APPROVAL",
 }
 
+export const mockRetrievedSources = [
+  {
+    doc_id: "upload:9f058f10ea53",
+    chunk_id: "d782975a-6ae0-4fe9-9ef5-84c623b4346b",
+    title: "Sherlog Demo Database Pool Exhaustion Runbook - Purpose & Triage",
+    source: "runbooks/database_pool_exhaustion.md",
+    service: "orders",
+    excerpt: "## Triage & Investigation Steps\n1. Check active database connection pool gauge in Prometheus: `pg_stat_activity` vs configured pool limit.\n2. When connections reach 100% capacity, incoming queries queue and throw acquire timeouts (HTTP 500 / 504 on /orders/checkout).\n3. Remediate by increasing pool maximum connections or terminating idle sessions.",
+    similarity_score: 0.81,
+    rank: 1,
+    included_in_context: true,
+    why_relevant: "Matched orders service connection pool exhaustion symptoms, directly detailing connection saturation behavior and sizing remediation.",
+  },
+  {
+    doc_id: "runbook:historical_incidents",
+    chunk_id: "f3277a4c-f8bf-4864-a1dd-a938689b1bbe",
+    title: "Historical Postmortem - INC-2026-001: Connection Pool Starvation",
+    source: "postmortems/INC-2026-001.md",
+    service: "orders",
+    excerpt: "## Resolution & Action Items\nDuring flash sale traffic, 20 pool connections proved insufficient. The permanent fix scaled the pool to 40 connections with acquisition timeout reduced to 15s.",
+    similarity_score: 0.79,
+    rank: 2,
+    included_in_context: true,
+    why_relevant: "Identifies identical past incident on orders service where pool capacity caused severe checkout latency.",
+  },
+  {
+    doc_id: "runbook:slow_query_tuning",
+    chunk_id: "c84112e4-99b2-4d91-88d4-5399712a1f81",
+    title: "Runbook: Slow Database Query Optimization",
+    source: "runbooks/slow_queries.md",
+    service: "orders",
+    excerpt: "Index fragmentation or missing composite indices can cause long query duration. Check pg_stat_statements for top queries by total execution time.",
+    similarity_score: 0.62,
+    rank: 3,
+    included_in_context: false,
+    why_relevant: "Retrieved as secondary candidate regarding database latency, but deprioritized as evidence points to connection starvation rather than single slow queries.",
+  },
+]
+
 export const mockInvestigationDataINC00241: IncidentInvestigationData = {
   incidentId: "INC-00241",
   title: "API latency spike",
@@ -363,4 +402,6 @@ export const mockInvestigationDataINC00241: IncidentInvestigationData = {
   logs: mockInvestigationLogs,
   traces: mockTraceSpans,
   remediation: mockRemediationProposal,
+  retrievedSources: mockRetrievedSources,
+  retrievalStatus: "SUCCESS",
 }

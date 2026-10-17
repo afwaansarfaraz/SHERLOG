@@ -96,7 +96,18 @@ class JaegerTool(BaseTelemetryTool):
         if search_in.operation:
             params["operation"] = search_in.operation
         if search_in.tags:
-            params["tags"] = search_in.tags
+            tags_val = search_in.tags.strip()
+            if tags_val.startswith("{"):
+                params["tags"] = tags_val
+            elif "=" in tags_val:
+                tags_dict = {}
+                for part in tags_val.split(","):
+                    if "=" in part:
+                        k, v = part.split("=", 1)
+                        tags_dict[k.strip()] = v.strip()
+                params["tags"] = json.dumps(tags_dict)
+            else:
+                params["tags"] = tags_val
         if search_in.min_duration:
             params["minDuration"] = search_in.min_duration
         if search_in.max_duration:

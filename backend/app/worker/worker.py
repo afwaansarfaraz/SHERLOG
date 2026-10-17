@@ -92,7 +92,7 @@ class IncidentWorker:
             raise
 
     def _default_processor(self, incident: IncidentResponse, db: Session) -> None:
-        """Default processing logic: transitions incident to INVESTIGATING and updates metadata."""
+        """Default processing logic: transitions incident to INVESTIGATING and executes investigation pipeline."""
         repo = PostgresIncidentRepository(db)
         repo.update_status(
             incident_id=incident.id,
@@ -108,6 +108,52 @@ class IncidentWorker:
             self.consumer_name,
             incident.id,
         )
+
+        # Run Sherlog bounded AI investigation pipeline
+        try:
+            from backend.app.investigation.orchestrator import InvestigationPipeline
+            pipeline = InvestigationPipeline(db=db)
+            result = pipeline.run(incident)
+
+            # Persist summary outcome back to incident metadata
+            repo.update_status(
+                incident_id=incident.id,
+                status=IncidentStatus.INVESTIGATING,
+                metadata_updates={
+                    "investigation_id": result.investigation_id,
+                    "investigation_status": result.status.value,
+                    "investigation_source": result.source,
+                    "root_cause": result.root_cause,
+                    "investigation_confidence": result.confidence.value,
+                    "evidence_count": result.evidence_count,
+                    "investigation_summary": result.summary,
+                    "queue_status": "COMPLETED",
+                },
+            )
+            logger.info(
+                "Completed investigation %s for incident %s with status %s (source: %s)",
+                result.investigation_id,
+                incident.id,
+                result.status.value,
+                result.source,
+            )
+        except Exception as inv_err:
+            logger.error(
+                "Investigation pipeline failed for incident %s: %s",
+                incident.id,
+                inv_err,
+                exc_info=True,
+            )
+            repo.update_status(
+                incident_id=incident.id,
+                status=IncidentStatus.INVESTIGATING,
+                metadata_updates={
+                    "queue_status": "FAILED",
+                    "investigation_error": str(inv_err),
+                },
+            )
+            raise
+
 
     def process_message(self, msg_id: str, fields: Dict[str, str]) -> bool:
         """Process a single stream message with idempotency, retry, and DLQ handling.

@@ -108,6 +108,40 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### 5. Run Database Migrations
+
+Apply Alembic migrations to initialize all tables (including investigations, knowledge base chunks, and audit logs):
+
+```bash
+alembic upgrade head
+```
+
+### 6. Start the Sherlog Platform Backend
+
+The Sherlog AI investigation platform backend runs on port `8080`:
+
+```bash
+# Windows PowerShell
+.venv\Scripts\python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080 --reload
+
+# Linux/macOS
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8080 --reload
+```
+
+> **Note:** Port `8080` is the Sherlog Platform API. Port `8000` is reserved for the Demo SaaS API gateway (`sherlog-api`).
+
+### 7. Start the Frontend Workspace
+
+In a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open your browser at `http://localhost:5173`.
+
 ---
 
 ## 🧭 Project Roadmap

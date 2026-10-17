@@ -53,6 +53,26 @@ describe("Sherlog Hardened API Client", () => {
     })
   })
 
+  describe("Endpoint URL Normalization", () => {
+    it("avoids duplicating the baseUrl prefix when endpoint already includes it", async () => {
+      let requestedUrl = ""
+      global.fetch = vi.fn((url: string) => {
+        requestedUrl = url
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("/api/knowledge")
+      expect(requestedUrl).toBe("/api/knowledge")
+
+      await client.get("/knowledge")
+      expect(requestedUrl).toBe("/api/knowledge")
+
+      await client.get("http://external-api.com/v1/data")
+      expect(requestedUrl).toBe("http://external-api.com/v1/data")
+    })
+  })
+
   describe("Timeout Handling", () => {
     it("throws ApiTimeoutError when request duration exceeds timeoutMs", async () => {
       global.fetch = vi.fn((_url, options?: RequestInit) => {

@@ -26,12 +26,16 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Health router (available at both /health and /api/health)
+    # Health router (available at both /health, /api/health, and /api/v1/health)
     app.include_router(health_router)
     app.include_router(health_router, prefix=settings.API_V1_PREFIX)
+    if settings.API_V1_PREFIX != "/api/v1":
+        app.include_router(health_router, prefix="/api/v1")
 
-    # Core API routers (/api/incidents)
+    # Core API routers (/api/incidents, /api/v1/incidents, etc.)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    if settings.API_V1_PREFIX != "/api/v1":
+        app.include_router(api_router, prefix="/api/v1")
 
     return app
 

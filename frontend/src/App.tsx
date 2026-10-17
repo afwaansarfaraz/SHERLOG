@@ -173,7 +173,10 @@ export function App() {
                 }}
               />
             ) : routeState.type === "workspace" ? (
-              <InvestigationWorkspace onBackToOverview={navigateToOverview} />
+              <InvestigationWorkspace
+                incidentId={routeState.incidentId}
+                onBackToOverview={navigateToOverview}
+              />
             ) : routeState.type === "preview" ? (
               import.meta.env.DEV ? (
                 <HardeningShowcase />

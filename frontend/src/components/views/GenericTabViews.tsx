@@ -2,15 +2,16 @@ import React from "react"
 import {
   AlertTriangle,
   Server,
-  BookOpen,
-  FileCheck2,
-  FileText,
   Settings,
   ArrowLeft,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle } from "../common/Card"
 import { Badge } from "../common/Badge"
 import { Button } from "../common/Button"
+import { KnowledgeBase } from "./KnowledgeBase"
+import { AuditLogsView } from "./AuditLogsView"
+import { SettingsView } from "./SettingsView"
+import { EvaluationsView } from "./EvaluationsView"
 import { mockIncidents } from "../../mocks/incidents"
 import { mockServices } from "../../mocks/services"
 import type { NavItemKey } from "../shell/Sidebar"
@@ -124,38 +125,26 @@ export const GenericTabView: React.FC<GenericTabViewProps> = ({
     )
   }
 
-  const tabMeta: Record<string, { title: string; icon: React.ElementType; description: string }> = {
-    knowledge: {
-      title: "Operational Knowledge & Runbooks",
-      icon: BookOpen,
-      description: "RAG-indexed service runbooks, architectural documents, and past postmortems.",
-    },
-    evaluations: {
-      title: "Evaluation Benchmark Suite",
-      icon: FileCheck2,
-      description:
-        "Deterministic benchmark running 20 known fault scenarios × 3 runs against rule-based baselines.",
-    },
-    "audit-logs": {
-      title: "Audit & Remediation Trail",
-      icon: FileText,
-      description:
-        "Cryptographically traceable append-only record of all agent proposals, approvals, and actions.",
-    },
-    settings: {
-      title: "Platform Settings & Credentials",
-      icon: Settings,
-      description:
-        "Alertmanager webhook shared secrets, PostgreSQL/Redis connections, budget guards, and OAuth configuration.",
-    },
+  if (tab === "knowledge") {
+    return <KnowledgeBase onBackToOverview={onBackToOverview} />
   }
 
-  const meta = tabMeta[tab] || {
-    title: tab,
-    icon: Settings,
-    description: "Configuration workspace.",
+  if (tab === "audit-logs") {
+    return (
+      <AuditLogsView
+        onBackToOverview={onBackToOverview}
+        onSelectIncident={onSelectIncident}
+      />
+    )
   }
-  const Icon = meta.icon
+
+  if (tab === "settings") {
+    return <SettingsView onBackToOverview={onBackToOverview} />
+  }
+
+  if (tab === "evaluations") {
+    return <EvaluationsView onBackToOverview={onBackToOverview} />
+  }
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
@@ -163,21 +152,16 @@ export const GenericTabView: React.FC<GenericTabViewProps> = ({
         <Button variant="ghost" size="sm" onClick={onBackToOverview}>
           <ArrowLeft className="w-4 h-4 mr-1" /> Overview
         </Button>
-        <h2 className="text-xl font-semibold text-bone">{meta.title}</h2>
+        <h2 className="text-xl font-semibold text-bone">{tab}</h2>
       </div>
 
       <Card className="p-8 text-center space-y-4">
         <div className="w-12 h-12 rounded-lg bg-ink border border-ash flex items-center justify-center text-amber mx-auto">
-          <Icon className="w-6 h-6" />
+          <Settings className="w-6 h-6" />
         </div>
         <div className="max-w-md mx-auto">
-          <h3 className="text-sm font-semibold text-bone">{meta.title}</h3>
-          <p className="text-xs text-dust mt-1.5 leading-relaxed">{meta.description}</p>
-        </div>
-        <div className="pt-2">
-          <span className="px-2.5 py-1 rounded bg-[#27211B] text-dust text-[11px] font-mono border border-ash">
-            Scheduled for implementation in corresponding milestone
-          </span>
+          <h3 className="text-sm font-semibold text-bone">{tab}</h3>
+          <p className="text-xs text-dust mt-1.5 leading-relaxed">Configuration workspace.</p>
         </div>
       </Card>
     </div>

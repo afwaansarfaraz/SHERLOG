@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 
 
@@ -44,7 +44,7 @@ class EvidenceItem(BaseModel):
     value: Any = Field(..., description="Scalar metric value, log line string, or status code")
     service: Optional[str] = Field(None, description="Service generating this evidence")
     description: Optional[str] = Field(None, description="Human explanation of observed signal")
-    timestamp: Optional[str] = Field(None, description="Timestamp when evidence was observed")
+    timestamp: Optional[Union[str, datetime]] = Field(None, description="Timestamp when evidence was observed")
 
 
 class HypothesisRanking(BaseModel):

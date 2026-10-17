@@ -248,7 +248,14 @@ export class ApiClient {
   public async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const method = (options.method || "GET").toUpperCase()
     const isIdempotent = ["GET", "HEAD", "OPTIONS"].includes(method)
-    const url = endpoint.startsWith("http") ? endpoint : `${this.baseUrl}${endpoint}`
+    let url: string
+    if (endpoint.startsWith("http")) {
+      url = endpoint
+    } else if (this.baseUrl && (endpoint === this.baseUrl || endpoint.startsWith(`${this.baseUrl}/`))) {
+      url = endpoint
+    } else {
+      url = `${this.baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`
+    }
 
     // Deduplicate in-flight idempotent GET requests
     if (isIdempotent && method === "GET") {

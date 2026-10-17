@@ -81,6 +81,19 @@ export interface RemediationProposal {
 export type InvestigationTab =
   "hypotheses" | "evidence" | "logs" | "metrics" | "traces" | "agent-activity"
 
+export interface KnowledgeSource {
+  doc_id: string
+  chunk_id?: string
+  title: string
+  source?: string
+  service?: string
+  excerpt: string
+  similarity_score?: number
+  rank?: number
+  included_in_context: boolean
+  why_relevant?: string
+}
+
 export interface IncidentInvestigationData {
   incidentId: string
   title: string
@@ -94,4 +107,21 @@ export interface IncidentInvestigationData {
   logs: InvestigationLogEntry[]
   traces: TraceSpan[]
   remediation: RemediationProposal
+  retrievedSources?: KnowledgeSource[]
+  retrievalStatus?: string
 }
+
+export interface AuditLogEntry {
+  id: string
+  timestamp: string
+  action: string
+  actor: string
+  investigation_id: string
+  incident_id: string
+  proposal_id?: string
+  reason?: string
+  details: string
+}
+
+
+
