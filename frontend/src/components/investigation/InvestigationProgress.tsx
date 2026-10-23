@@ -1,5 +1,5 @@
 import React from "react"
-import { CheckCircle2, Clock, CircleDot, Circle } from "lucide-react"
+import { CheckCircle2, Clock, CircleDot, Circle, XCircle } from "lucide-react"
 import { Card, CardHeader, CardTitle } from "../common/Card"
 import type { InvestigationStep } from "../../types"
 
@@ -25,6 +25,7 @@ export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
         {steps.map((step, idx) => {
           const isCompleted = idx < currentStepIndex
           const isActive = idx === currentStepIndex - 1 && currentStepIndex < steps.length
+          const isFailed = step.status === "failed"
           const isLast = idx === steps.length - 1
 
           return (
@@ -40,7 +41,11 @@ export const InvestigationProgress: React.FC<InvestigationProgressProps> = ({
 
               {/* Step Node Icon */}
               <div className="shrink-0 relative z-10">
-                {isCompleted ? (
+                {isFailed ? (
+                  <div className="w-6 h-6 rounded-full bg-[#2E1618] border border-[#572124] flex items-center justify-center text-vermilion">
+                    <XCircle className="w-3.5 h-3.5" />
+                  </div>
+                ) : isCompleted ? (
                   <div className="w-6 h-6 rounded-full bg-[#162722] border border-[#234A3E] flex items-center justify-center text-verdigris">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </div>

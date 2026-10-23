@@ -20,6 +20,7 @@ import {
   Loader2,
   ArrowLeft,
   X,
+  Layers,
 } from "lucide-react"
 import { Card, CardHeader, CardTitle } from "../common/Card"
 import { Badge } from "../common/Badge"
@@ -79,6 +80,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBackToOverview }
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
   const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [filterType, setFilterType] = useState<"all" | "builtin" | "uploaded">("all")
 
   // Upload state
   const [uploading, setUploading] = useState(false)
@@ -296,6 +298,107 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBackToOverview }
         </div>
       )}
 
+      {/* KPI Metrics Cards: Distinct Counts for Built-in Runbooks, Uploaded Docs, and Indexed Chunks */}
+      {!loading && documents.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div
+            onClick={() => setFilterType("builtin")}
+            className={`p-4 rounded-lg bg-soot/80 border transition-all cursor-pointer ${
+              filterType === "builtin"
+                ? "border-amber shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+                : "border-ash hover:border-ash/80"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-dust">Built-in Runbooks</span>
+              <BookOpen className="w-4 h-4 text-amber" />
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-bone font-mono">
+              {documents.filter((d) => d.doc_id.startsWith("runbook:")).length}
+            </div>
+            <p className="mt-1 text-[11px] text-dust">
+              Standard operational failure categories, reusable across all connected applications.
+            </p>
+          </div>
+
+          <div
+            onClick={() => setFilterType("uploaded")}
+            className={`p-4 rounded-lg bg-soot/80 border transition-all cursor-pointer ${
+              filterType === "uploaded"
+                ? "border-verdigris shadow-[0_0_12px_rgba(20,184,166,0.15)]"
+                : "border-ash hover:border-ash/80"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-dust">Uploaded Documents</span>
+              <Upload className="w-4 h-4 text-verdigris" />
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-bone font-mono">
+              {documents.filter((d) => !d.doc_id.startsWith("runbook:")).length}
+            </div>
+            <p className="mt-1 text-[11px] text-dust">
+              Custom tenant runbooks, architectural specs, and postmortems preserved in storage.
+            </p>
+          </div>
+
+          <div
+            onClick={() => setFilterType("all")}
+            className={`p-4 rounded-lg bg-soot/80 border transition-all cursor-pointer ${
+              filterType === "all"
+                ? "border-bone/60 shadow-[0_0_12px_rgba(255,255,255,0.08)]"
+                : "border-ash hover:border-ash/80"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wider text-dust">Indexed Chunks</span>
+              <Layers className="w-4 h-4 text-bone/70" />
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-bone font-mono">
+              {documents.reduce((sum, d) => sum + (d.chunk_count || 0), 0)}
+            </div>
+            <p className="mt-1 text-[11px] text-dust">
+              Vector-embedded semantic chunks ready for real-time investigation retrieval.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs */}
+      {!loading && documents.length > 0 && (
+        <div className="flex items-center gap-2 border-b border-ash/50 pb-2">
+          <button
+            onClick={() => setFilterType("all")}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              filterType === "all"
+                ? "bg-ash/70 text-bone"
+                : "text-dust hover:text-bone hover:bg-ink/40"
+            }`}
+          >
+            All Documents ({documents.length})
+          </button>
+          <button
+            onClick={() => setFilterType("builtin")}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              filterType === "builtin"
+                ? "bg-amber/20 text-amber border border-amber/40"
+                : "text-dust hover:text-bone hover:bg-ink/40"
+            }`}
+          >
+            Built-in Runbooks ({documents.filter((d) => d.doc_id.startsWith("runbook:")).length})
+          </button>
+          <button
+            onClick={() => setFilterType("uploaded")}
+            className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+              filterType === "uploaded"
+                ? "bg-verdigris/20 text-verdigris border border-verdigris/40"
+                : "text-dust hover:text-bone hover:bg-ink/40"
+            }`}
+          >
+            Uploaded Documents ({documents.filter((d) => !d.doc_id.startsWith("runbook:")).length})
+          </button>
+        </div>
+      )}
+
       {/* Loading State */}
       {loading && (
         <Card className="p-8 flex flex-col items-center justify-center text-center space-y-3 min-h-[200px]">
@@ -322,17 +425,37 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBackToOverview }
           <CardHeader>
             <CardTitle>
               <BookOpen className="w-4 h-4 text-amber" />
-              <span>Indexed Documents</span>
+              <span>
+                {filterType === "builtin"
+                  ? "Built-in Operational Runbooks"
+                  : filterType === "uploaded"
+                  ? "User Uploaded Documents"
+                  : "All Indexed Documents"}
+              </span>
               <span className="ml-auto font-mono text-xs text-dust font-normal">
-                {documents.length} document{documents.length !== 1 ? "s" : ""}
+                {
+                  documents.filter((d) => {
+                    if (filterType === "builtin") return d.doc_id.startsWith("runbook:")
+                    if (filterType === "uploaded") return !d.doc_id.startsWith("runbook:")
+                    return true
+                  }).length
+                }{" "}
+                document(s)
               </span>
             </CardTitle>
           </CardHeader>
 
           <div className="divide-y divide-ash/60">
-            {documents.map((doc) => {
+            {documents
+              .filter((d) => {
+                if (filterType === "builtin") return d.doc_id.startsWith("runbook:")
+                if (filterType === "uploaded") return !d.doc_id.startsWith("runbook:")
+                return true
+              })
+              .map((doc) => {
               const isExpanded = expandedDocId === doc.doc_id
               const isActionLoading = actionLoadingId === doc.doc_id
+              const isBuiltIn = doc.doc_id.startsWith("runbook:")
 
               return (
                 <div key={doc.id}>
@@ -350,7 +473,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBackToOverview }
                     </div>
 
                     <div className="w-8 h-8 rounded bg-[#27211B] border border-ash flex items-center justify-center shrink-0">
-                      <FileText className="w-4 h-4 text-amber" />
+                      <FileText className={`w-4 h-4 ${isBuiltIn ? "text-amber" : "text-verdigris"}`} />
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -358,6 +481,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ onBackToOverview }
                         <span className="text-sm font-medium text-bone truncate">
                           {doc.title}
                         </span>
+                        {isBuiltIn ? (
+                          <Badge variant="awaiting_approval" withDot>BUILT-IN RUNBOOK</Badge>
+                        ) : (
+                          <Badge variant="healthy" withDot>USER UPLOAD</Badge>
+                        )}
                         {statusBadge(doc)}
                         <Badge variant="slate">{docTypeLabel(doc.doc_type)}</Badge>
                       </div>

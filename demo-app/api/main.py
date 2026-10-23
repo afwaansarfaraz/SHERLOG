@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import hmac
 from typing import List
 
 import httpx
@@ -23,7 +24,10 @@ telemetry = Telemetry(
 async def lifespan(app: FastAPI):
     await telemetry.start()
     telemetry.logger.info("API Gateway initialized and ready.")
-    yield
+    try:
+        yield
+    finally:
+        await telemetry.stop()
 
 
 app = FastAPI(title="Sherlog API Gateway", version="1.0.0", lifespan=lifespan)
@@ -155,9 +159,17 @@ async def alertmanager_webhook(
     payload: AlertmanagerWebhookPayload,
     authorization: str = Header(default=""),
 ):
-    # Verify shared secret
-    expected_token = f"Bearer {settings.WEBHOOK_SECRET}"
-    if authorization != expected_token and settings.WEBHOOK_SECRET:
+    # Fail closed when this optional demo receiver is not configured.
+    if not settings.WEBHOOK_SECRET or not settings.WEBHOOK_SECRET.strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Alertmanager webhook authentication is not configured on the server.",
+        )
+
+    scheme, separator, token = authorization.partition(" ")
+    if not separator or scheme.lower() != "bearer" or not hmac.compare_digest(
+        token.strip().encode("utf-8"), settings.WEBHOOK_SECRET.strip().encode("utf-8")
+    ):
         telemetry.logger.warning(
             "Unauthorized Alertmanager webhook attempt: invalid token"
         )

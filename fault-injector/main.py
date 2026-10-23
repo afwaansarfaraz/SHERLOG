@@ -19,15 +19,20 @@ telemetry = Telemetry(
 async def lifespan(app: FastAPI):
     await telemetry.start()
     telemetry.logger.info("Fault Injector service initialized and ready.")
-    yield
-    # Cleanup any active faults on shutdown
-    for fault_info in registry.list_active():
-        f = registry.get(fault_info["id"])
-        if f:
-            try:
-                await f.deactivate()
-            except Exception:
-                pass
+    try:
+        yield
+    finally:
+        try:
+            # Cleanup any active faults on shutdown
+            for fault_info in registry.list_active():
+                f = registry.get(fault_info["id"])
+                if f:
+                    try:
+                        await f.deactivate()
+                    except Exception:
+                        pass
+        finally:
+            await telemetry.stop()
 
 
 app = FastAPI(title="Sherlog Fault Injector", version="1.0.0", lifespan=lifespan)

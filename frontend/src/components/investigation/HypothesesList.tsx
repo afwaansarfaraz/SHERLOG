@@ -58,6 +58,9 @@ export const HypothesesList: React.FC<HypothesesListProps> = ({
       </div>
 
       <div className="space-y-2.5">
+        {hypotheses.length === 0 && (
+          <p className="text-xs text-dust py-3">No evidence-supported root-cause hypothesis is available yet.</p>
+        )}
         {hypotheses.map((hyp) => {
           const isSelected = selectedHypothesisId === hyp.id
 

@@ -81,6 +81,22 @@ class PostgresIncidentRepository:
             self.db.rollback()
             raise
 
+    def get_active_by_fingerprint(self, fingerprint: str) -> Optional[IncidentResponse]:
+        """Find an open/investigating incident for an Alertmanager fingerprint."""
+        try:
+            record = (
+                self.db.query(IncidentModel)
+                .filter(
+                    IncidentModel.fingerprint == fingerprint,
+                    IncidentModel.status.in_([IncidentStatus.OPEN.value, IncidentStatus.INVESTIGATING.value]),
+                )
+                .first()
+            )
+            return record.to_pydantic() if record else None
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
     def list_all(self, limit: int = 100, offset: int = 0) -> List[IncidentResponse]:
         """List incidents ordered latest first."""
         try:

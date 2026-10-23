@@ -24,7 +24,7 @@ export interface Hypothesis {
   verificationReason?: string
 }
 
-export type EvidenceType = "metric" | "log" | "trace" | "deploy" | "runbook"
+export type EvidenceType = "metric" | "log" | "trace" | "deploy" | "runbook" | "alert" | "config"
 export type EvidencePolarity = "supporting" | "contradicting" | "neutral"
 
 export interface EvidenceItem {
@@ -98,7 +98,7 @@ export interface IncidentInvestigationData {
   incidentId: string
   title: string
   service: string
-  status: "INVESTIGATING" | "VERIFYING" | "RESOLVED"
+  status: "INVESTIGATING" | "VERIFYING" | "RESOLVED" | "FAILED"
   openedAt: string
   summary: string
   steps: InvestigationStep[]

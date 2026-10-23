@@ -21,20 +21,12 @@ def get_repository(db: Session = Depends(get_db)) -> PostgresIncidentRepository:
     return PostgresIncidentRepository(db)
 
 
-@router.post(
-    "",
-    response_model=IncidentResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Ingest a new incident alert",
-    description="Validates incoming alert payload, assigns a tracking ID, and registers the incident in PostgreSQL.",
-)
-def ingest_incident(
+def persist_and_publish_incident(
     incident_in: IncidentCreate,
-    repo: PostgresIncidentRepository = Depends(get_repository),
-    publisher: IncidentPublisher = Depends(get_publisher),
+    repo: PostgresIncidentRepository,
+    publisher: IncidentPublisher,
 ) -> IncidentResponse:
-    """Validate and ingest an incident alert into persistent storage, then queue to Redis Streams."""
-    # 1. Primary persistence in PostgreSQL
+    """Persist an incident before attempting its asynchronous queue dispatch."""
     try:
         saved_incident = repo.save(incident_in)
     except SQLAlchemyError as db_err:
@@ -47,10 +39,10 @@ def ingest_incident(
         logger.error("Unexpected error during incident ingestion: %s", str(exc), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to process incident ingestion: {str(exc)}",
+            detail="Failed to process incident ingestion.",
         )
 
-    # 2. Asynchronous Queue dispatch to Redis Streams (non-blocking for DB persistence)
+    # Database persistence is authoritative; Redis dispatch is best-effort.
     try:
         severity_str = (
             saved_incident.severity.value
@@ -69,8 +61,8 @@ def ingest_incident(
             repo.update_queue_status(saved_incident.id, "ENQUEUED", {"stream_id": msg_id})
         else:
             logger.warning(
-                "Incident %s preserved in PostgreSQL but Redis Stream publish was unavailable. "
-                "Marking queue_status as PUBLISH_FAILED for subsequent backfill.",
+                "Incident %s persisted in PostgreSQL but Redis publish was unavailable; "
+                "marking it for backfill.",
                 saved_incident.id,
             )
             repo.update_queue_status(saved_incident.id, "PUBLISH_FAILED")
@@ -84,6 +76,22 @@ def ingest_incident(
         repo.update_queue_status(saved_incident.id, "PUBLISH_FAILED", {"error": str(q_exc)})
 
     return saved_incident
+
+
+@router.post(
+    "",
+    response_model=IncidentResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Ingest a new incident alert",
+    description="Validates incoming alert payload, assigns a tracking ID, and registers the incident in PostgreSQL.",
+)
+def ingest_incident(
+    incident_in: IncidentCreate,
+    repo: PostgresIncidentRepository = Depends(get_repository),
+    publisher: IncidentPublisher = Depends(get_publisher),
+) -> IncidentResponse:
+    """Validate and ingest an incident alert into persistent storage, then queue to Redis Streams."""
+    return persist_and_publish_incident(incident_in, repo, publisher)
 
 
 @router.get(

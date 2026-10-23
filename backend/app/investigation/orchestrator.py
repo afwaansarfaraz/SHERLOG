@@ -5,7 +5,7 @@ Incident -> Evidence Collection -> Hypothesis Generation -> Evidence Evaluation 
 Root Cause Assessment -> Persisted Investigation Result
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 import time
 from typing import Any, Dict, List, Optional, Union
@@ -117,6 +117,7 @@ class InvestigationPipeline:
             .filter(InvestigationModel.incident_id == incident_id)
             .first()
         )
+        is_stale = False
 
         if existing and existing.state in {s.value for s in TERMINAL_STATES} and not is_force:
             logger.info(
@@ -125,6 +126,40 @@ class InvestigationPipeline:
                 existing.state,
             )
             return self._build_result_from_model(existing, termination_reason="Already investigated (idempotent)")
+
+        if (
+            existing
+            and existing.state not in {InvestigationState.QUEUED.value}
+            and existing.state not in {s.value for s in TERMINAL_STATES}
+            and not is_force
+        ):
+            started_at = existing.started_at
+            if started_at is None:
+                is_stale = True
+            else:
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+                is_stale = datetime.now(timezone.utc) - started_at > timedelta(
+                    seconds=self.budget.max_seconds
+                )
+
+            if not is_stale:
+                logger.info(
+                    "Incident %s already has a fresh in-progress investigation (state: %s); not starting a duplicate run.",
+                    incident_id,
+                    existing.state,
+                )
+                return self._build_result_from_model(
+                    existing,
+                    termination_reason="Investigation already in progress; duplicate trigger was ignored.",
+                )
+
+            logger.warning(
+                "Recovering stale investigation for incident %s (state: %s, started_at: %s).",
+                incident_id,
+                existing.state,
+                existing.started_at,
+            )
 
         # 2. Initialize or Resume Investigation Record
         inv_id = f"INV-{incident_id}"
@@ -149,7 +184,7 @@ class InvestigationPipeline:
             self._save_checkpoint(inv_model, step=0, snapshot={"status": "initialized"})
         else:
             inv_model = existing
-            if is_force:
+            if is_force or is_stale:
                 inv_model.state = InvestigationState.QUEUED.value
                 inv_model.current_step = 0
                 inv_model.evidence = []
@@ -163,7 +198,15 @@ class InvestigationPipeline:
                 inv_model.completed_at = None
                 inv_model.error_message = None
                 self.db.commit()
-                self._save_checkpoint(inv_model, step=0, snapshot={"status": "re-initialized", "force": True})
+                self._save_checkpoint(
+                    inv_model,
+                    step=0,
+                    snapshot={
+                        "status": "re-initialized",
+                        "force": is_force,
+                        "recovered_stale_run": is_stale and not is_force,
+                    },
+                )
             else:
                 logger.info("Resuming non-terminal investigation %s from state %s", inv_id, inv_model.state)
 

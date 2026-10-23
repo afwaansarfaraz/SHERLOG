@@ -5,12 +5,15 @@ retrieve results, and approve/reject remediation proposals.
 """
 
 import logging
+import threading
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -74,6 +77,7 @@ class RemediationResponse(BaseModel):
 class InvestigationResponse(BaseModel):
     investigation_id: str
     incident_id: str
+    service: str = "unknown"
     status: str
     source: str = "llm"
     summary: str = ""
@@ -81,6 +85,7 @@ class InvestigationResponse(BaseModel):
     root_cause: Optional[str] = None
     hypotheses: List[HypothesisResponse] = []
     evidence: List[EvidenceItemResponse] = []
+    tool_executions: List[Dict[str, Any]] = Field(default_factory=list)
     evidence_count: int = 0
     retrieved_sources: List[Dict[str, Any]] = Field(
         default_factory=list,
@@ -122,6 +127,49 @@ class AuditLogEntry(BaseModel):
 
 _investigations: Dict[str, Dict[str, Any]] = {}
 _audit_log: List[Dict[str, Any]] = []
+_local_investigation_locks: Dict[str, threading.Lock] = {}
+_local_investigation_locks_guard = threading.Lock()
+
+
+@contextmanager
+def _investigation_trigger_lock(db: Session, incident_id: str):
+    """Serialize triggers across workers, with a process-local fallback for SQLite tests."""
+    bind = db.get_bind()
+    lock_key = f"sherlog:investigation:{incident_id}"
+
+    if bind.dialect.name == "postgresql":
+        connection = bind.connect()
+        try:
+            acquired = bool(
+                connection.execute(
+                    text("SELECT pg_try_advisory_lock(hashtext(:lock_key))"),
+                    {"lock_key": lock_key},
+                ).scalar()
+            )
+            connection.commit()
+            yield acquired
+        finally:
+            if "acquired" in locals() and acquired:
+                try:
+                    connection.execute(
+                        text("SELECT pg_advisory_unlock(hashtext(:lock_key))"),
+                        {"lock_key": lock_key},
+                    )
+                    connection.commit()
+                finally:
+                    connection.close()
+            else:
+                connection.close()
+        return
+
+    with _local_investigation_locks_guard:
+        lock = _local_investigation_locks.setdefault(incident_id, threading.Lock())
+    acquired = lock.acquire(blocking=False)
+    try:
+        yield acquired
+    finally:
+        if acquired:
+            lock.release()
 
 
 def _format_pipeline_result(
@@ -130,6 +178,7 @@ def _format_pipeline_result(
     incident_service: str,
     now: datetime,
     existing_remediation: Optional[Dict[str, Any]] = None,
+    persisted_evidence: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Convert an InvestigationResult into an API-serializable dict."""
     hypotheses = []
@@ -148,16 +197,42 @@ def _format_pipeline_result(
         })
     
     evidence_items = []
-    for j, ref in enumerate(result.evidence_references):
-        evidence_items.append({
-            "id": f"ev-{j+1}",
-            "type": "metric" if "metric" in ref.lower() else ("log" if "log" in ref.lower() else ("config" if "runbook" in ref.lower() else "trace")),
-            "title": ref,
-            "source": "investigation-pipeline",
-            "summary": ref,
-            "polarity": "supporting",
-            "timestamp": now.isoformat(),
-        })
+    if persisted_evidence is not None:
+        source_types = {
+            "ALERT": "alert",
+            "METRIC": "metric",
+            "LOG": "log",
+            "TRACE": "trace",
+            "CONFIG": "config",
+        }
+        for j, evidence in enumerate(persisted_evidence):
+            source_type = str(evidence.get("source", "")).upper()
+            value = evidence.get("value")
+            description = evidence.get("description")
+            summary = str(description or value or evidence.get("name") or "Evidence collected")
+            if value is not None and str(value) not in summary:
+                summary = f"{summary} (observed: {value})"
+            name = str(evidence.get("name") or f"evidence-{j + 1}")
+            evidence_items.append({
+                "id": f"ev-{j + 1}",
+                "type": source_types.get(source_type, "config"),
+                "title": name,
+                "source": name.split(":", 1)[0] if ":" in name else source_type.lower(),
+                "summary": summary,
+                "polarity": "neutral",
+                "timestamp": evidence.get("timestamp") or now.isoformat(),
+            })
+    else:
+        for j, ref in enumerate(result.evidence_references):
+            evidence_items.append({
+                "id": f"ev-{j+1}",
+                "type": "metric" if "metric" in ref.lower() else ("log" if "log" in ref.lower() else ("config" if "runbook" in ref.lower() else "trace")),
+                "title": ref,
+                "source": "investigation-pipeline",
+                "summary": ref,
+                "polarity": "neutral",
+                "timestamp": now.isoformat(),
+            })
 
     retrieved_sources = [
         s.model_dump() if hasattr(s, "model_dump") else s
@@ -177,23 +252,26 @@ def _format_pipeline_result(
                     retrieval_status = tool_exec["status"]
                 break
 
-    remediation = existing_remediation or {
-        "id": f"REM-{incident_id}",
-        "incident_id": incident_id,
-        "root_cause_title": result.root_cause or "Service Degradation",
-        "root_cause_description": result.summary,
-        "action_title": f"Remediate {result.root_cause or 'incident'}",
-        "action_description": f"Apply recommended fix based on investigation findings for {incident_service}",
-        "target_service": incident_service,
-        "status": "AWAITING_APPROVAL",
-        "approved_by": None,
-        "approved_at": None,
-        "rejection_reason": None,
-    }
+    remediation = None
+    if result.status.value == "COMPLETED" and result.root_cause:
+        remediation = existing_remediation or {
+            "id": f"REM-{incident_id}",
+            "incident_id": incident_id,
+            "root_cause_title": result.root_cause,
+            "root_cause_description": result.summary,
+            "action_title": f"Remediate {result.root_cause}",
+            "action_description": f"Apply the proposed remediation for {incident_service} after human approval.",
+            "target_service": incident_service,
+            "status": "AWAITING_APPROVAL",
+            "approved_by": None,
+            "approved_at": None,
+            "rejection_reason": None,
+        }
 
     return {
         "investigation_id": result.investigation_id,
         "incident_id": incident_id,
+        "service": incident_service,
         "status": result.status.value if hasattr(result.status, 'value') else str(result.status),
         "source": result.source,
         "summary": result.summary,
@@ -202,6 +280,7 @@ def _format_pipeline_result(
         "hypotheses": hypotheses,
         "evidence": evidence_items,
         "evidence_count": result.evidence_count,
+        "tool_executions": result.tool_executions or [],
         "retrieved_sources": retrieved_sources,
         "retrieval_status": retrieval_status,
         "remediation": remediation,
@@ -220,7 +299,6 @@ def _run_investigation(incident_id: str, db: Session, force: bool = False) -> Di
     a structured demo result with clear 'simulated' labeling.
     """
     now = datetime.now(timezone.utc)
-    inv_id = f"INV-{uuid.uuid4().hex[:8].upper()}"
     
     # Try to load incident from database
     incident = db.query(IncidentModel).filter(IncidentModel.id == incident_id).first()
@@ -255,7 +333,14 @@ def _run_investigation(incident_id: str, db: Session, force: bool = False) -> Di
         if inv_model_check and inv_model_check.evaluation:
             existing_rem = inv_model_check.evaluation.get("remediation")
 
-        inv_data = _format_pipeline_result(result, incident_id, incident_service, now, existing_remediation=existing_rem)
+        inv_data = _format_pipeline_result(
+            result,
+            incident_id,
+            incident_service,
+            now,
+            existing_remediation=existing_rem,
+            persisted_evidence=inv_model_check.evidence if inv_model_check else None,
+        )
         
         # Persist remediation proposal into inv_model.evaluation in database
         if inv_model_check:
@@ -270,105 +355,11 @@ def _run_investigation(incident_id: str, db: Session, force: bool = False) -> Di
         return inv_data
 
     except Exception as exc:
-        logger.warning(
-            "Investigation pipeline unavailable for %s, using structured demo: %s",
-            incident_id, exc,
-        )
-        
-        # Structured demo fallback with clear labeling
-        inv_data = {
-            "investigation_id": inv_id,
-            "incident_id": incident_id,
-            "status": "COMPLETED",
-            "source": "demo_fallback",
-            "summary": f"[SIMULATED] Investigation of '{incident_title}' affecting {incident_service}. "
-                       f"The pipeline detected anomalies consistent with the reported alert. "
-                       f"Root cause analysis suggests service degradation in the {incident_service} component.",
-            "confidence": "MEDIUM",
-            "root_cause": f"{incident_service}_degradation",
-            "hypotheses": [
-                {
-                    "id": "h1",
-                    "rank": 1,
-                    "title": f"{incident_service.title()} Service Degradation",
-                    "root_cause": f"{incident_service}_service_degradation",
-                    "score": 72.0,
-                    "likelihood": "LIKELY",
-                    "causal_explanation": f"[SIMULATED] Elevated error rates and latency spikes in the {incident_service} "
-                                         f"service correlate with the reported incident timeframe.",
-                    "supporting_evidence": ["error_rate_spike", "latency_p95_increase"],
-                    "contradicting_evidence": [],
-                    "affected_service": incident_service,
-                },
-                {
-                    "id": "h2",
-                    "rank": 2,
-                    "title": "Upstream Dependency Timeout",
-                    "root_cause": "upstream_dependency_timeout",
-                    "score": 45.0,
-                    "likelihood": "POSSIBLE",
-                    "causal_explanation": "[SIMULATED] Partial evidence of upstream service latency, but insufficient "
-                                         "to confirm as primary root cause.",
-                    "supporting_evidence": ["upstream_latency_increase"],
-                    "contradicting_evidence": ["downstream_healthy"],
-                    "affected_service": incident_service,
-                },
-            ],
-            "evidence": [
-                {
-                    "id": "ev-1",
-                    "type": "metric",
-                    "title": "Error Rate Spike",
-                    "source": "prometheus (simulated)",
-                    "summary": f"[SIMULATED] {incident_service} error rate exceeded threshold",
-                    "polarity": "supporting",
-                    "timestamp": now.isoformat(),
-                },
-                {
-                    "id": "ev-2",
-                    "type": "log",
-                    "title": "Error Log Entries",
-                    "source": "loki (simulated)",
-                    "summary": f"[SIMULATED] Multiple error-level log entries from {incident_service}",
-                    "polarity": "supporting",
-                    "timestamp": now.isoformat(),
-                },
-                {
-                    "id": "ev-3",
-                    "type": "trace",
-                    "title": "Trace Latency Analysis",
-                    "source": "jaeger (simulated)",
-                    "summary": "[SIMULATED] Elevated span durations in request traces",
-                    "polarity": "supporting",
-                    "timestamp": now.isoformat(),
-                },
-            ],
-            "evidence_count": 3,
-            "retrieved_sources": [],
-            "retrieval_status": "NO_DOCUMENTS_FOUND",
-            "remediation": {
-                "id": f"REM-{incident_id}",
-                "incident_id": incident_id,
-                "root_cause_title": f"{incident_service.title()} Service Degradation",
-                "root_cause_description": f"[SIMULATED] Root cause analysis indicates degradation in {incident_service}",
-                "action_title": f"Restart {incident_service.title()} Service Pods",
-                "action_description": f"[SIMULATED] Rolling restart of {incident_service} pods to restore healthy state. "
-                                      f"This action requires manual approval before execution.",
-                "target_service": incident_service,
-                "status": "AWAITING_APPROVAL",
-                "approved_by": None,
-                "approved_at": None,
-                "rejection_reason": None,
-            },
-            "budget_consumed": {"steps": 4, "llm_calls": 0, "tool_calls": 3, "evidence_items": 3},
-            "started_at": now.isoformat(),
-            "completed_at": now.isoformat(),
-            "error_message": None,
-            "is_simulated": True,
-        }
-
-        _investigations[incident_id] = inv_data
-        return inv_data
+        logger.exception("Investigation pipeline failed for %s", incident_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Investigation pipeline failed for '{incident_id}': {type(exc).__name__}",
+        ) from exc
 
 
 # ==========================================================================
@@ -386,13 +377,37 @@ def trigger_investigation(
     db: Session = Depends(get_db),
 ) -> InvestigationResponse:
     """Start an AI-powered investigation for the given incident ID."""
-    # Check for existing investigation in memory
-    if req.incident_id in _investigations and not req.force:
-        existing = _investigations[req.incident_id]
-        return InvestigationResponse(**existing)
+    with _investigation_trigger_lock(db, req.incident_id) as acquired:
+        if not acquired:
+            inv_model = (
+                db.query(InvestigationModel)
+                .filter(InvestigationModel.incident_id == req.incident_id)
+                .first()
+            )
+            if not inv_model:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Investigation is being initialized; retry shortly.",
+                    headers={"Retry-After": "1"},
+                )
+            incident = db.query(IncidentModel).filter(IncidentModel.id == req.incident_id).first()
+            from backend.app.investigation.orchestrator import InvestigationPipeline
 
-    result = _run_investigation(req.incident_id, db, force=req.force)
-    return InvestigationResponse(**result)
+            pipeline = InvestigationPipeline(db=db)
+            current = pipeline._build_result_from_model(inv_model)
+            return InvestigationResponse(
+                **_format_pipeline_result(
+                    current,
+                    req.incident_id,
+                    incident.service if incident else "unknown",
+                    datetime.now(timezone.utc),
+                    existing_remediation=(inv_model.evaluation or {}).get("remediation"),
+                    persisted_evidence=inv_model.evidence or [],
+                )
+            )
+
+        result = _run_investigation(req.incident_id, db, force=req.force)
+        return InvestigationResponse(**result)
 
 
 # ==========================================================================
@@ -495,7 +510,12 @@ def get_investigation(
             db.commit()
 
         inv_data = _format_pipeline_result(
-            result, incident_id, incident_service, datetime.now(timezone.utc), existing_remediation=existing_rem
+            result,
+            incident_id,
+            incident_service,
+            datetime.now(timezone.utc),
+            existing_remediation=existing_rem,
+            persisted_evidence=inv_model.evidence or [],
         )
         _investigations[incident_id] = inv_data
         return InvestigationResponse(**inv_data)

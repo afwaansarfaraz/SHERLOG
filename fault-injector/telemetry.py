@@ -72,57 +72,189 @@ class JsonFormatter(logging.Formatter):
 
 
 class LokiQueueHandler(logging.Handler):
+    """Async background batching handler for Grafana Loki."""
+
+    MAX_BATCH_SIZE = 50
+    MAX_PUSH_ATTEMPTS = 3
+    RETRY_BACKOFF_SECONDS = 0.1
+    WORKER_POLL_SECONDS = 0.1
+    SHUTDOWN_TIMEOUT_SECONDS = 3.0
+
     def __init__(self, loki_url: str, service_name: str):
         super().__init__()
         self.loki_url = loki_url.rstrip("/") + "/loki/api/v1/push"
         self.service_name = service_name
-        self.queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
+        self.queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue(maxsize=1000)
         self.worker_task: Optional[asyncio.Task] = None
+        self._stopping = False
+        self._queue_full_reported = False
+        self._status_logger = logging.getLogger(f"{__name__}.loki")
 
     def emit(self, record: logging.LogRecord):
         try:
+            if self.queue.full():
+                if not self._queue_full_reported:
+                    self._status_logger.error(
+                        "Loki log queue is full; new records are being dropped (service=%s)",
+                        self.service_name,
+                    )
+                    self._queue_full_reported = True
+                return
             msg = self.format(record)
-            if self.queue and not self.queue.full():
-                self.queue.put_nowait((record.levelname.lower(), msg))
-        except Exception:
-            pass
+            self.queue.put_nowait(
+                (record.levelname.lower(), str(int(record.created * 1_000_000_000)), msg)
+            )
+        except asyncio.QueueFull:
+            if not self._queue_full_reported:
+                self._status_logger.error(
+                    "Loki log queue is full; new records are being dropped (service=%s)",
+                    self.service_name,
+                )
+                self._queue_full_reported = True
+        except Exception as exc:
+            self._status_logger.error(
+                "Failed to format or queue a log record for Loki (service=%s, error=%s)",
+                self.service_name,
+                type(exc).__name__,
+            )
 
     async def start_worker(self):
+        if self.worker_task is not None and not self.worker_task.done():
+            return
+        self._stopping = False
         self.worker_task = asyncio.create_task(self._process_queue())
 
-    async def _process_queue(self):
-        client = httpx.AsyncClient(timeout=2.0)
-        while True:
+    async def stop_worker(self):
+        if self.worker_task is None:
+            return
+        self._stopping = True
+        task = self.worker_task
+        try:
+            await asyncio.wait_for(task, timeout=self.SHUTDOWN_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError:
+            self._status_logger.warning(
+                "Timed out draining Loki log queue (service=%s, pending_records=%d)",
+                self.service_name,
+                self.queue.qsize(),
+            )
+            task.cancel()
             try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._status_logger.warning(
+                "Loki worker ended during shutdown (service=%s, error=%s)",
+                self.service_name,
+                type(exc).__name__,
+            )
+        finally:
+            self.worker_task = None
+
+    async def _process_queue(self):
+        client = None
+        try:
+            client = httpx.AsyncClient(timeout=2.0)
+            while not self._stopping or not self.queue.empty():
                 batch = []
-                while not self.queue.empty() and len(batch) < 50:
+                while not self.queue.empty() and len(batch) < self.MAX_BATCH_SIZE:
                     batch.append(self.queue.get_nowait())
 
-                if batch:
-                    streams_map: Dict[str, list] = {}
-                    now_ns = str(int(time.time() * 1e9))
-                    for level, msg in batch:
-                        key = level
-                        if key not in streams_map:
-                            streams_map[key] = []
-                        streams_map[key].append([now_ns, msg])
+                if not batch:
+                    await asyncio.sleep(self.WORKER_POLL_SECONDS)
+                    continue
 
-                    streams = [
-                        {"stream": {"service": self.service_name, "level": lvl}, "values": vals}
-                        for lvl, vals in streams_map.items()
-                    ]
-
-                    await client.post(
-                        self.loki_url,
-                        json={"streams": streams},
-                        headers={"Content-Type": "application/json"},
+                if self._queue_full_reported and not self.queue.full():
+                    self._queue_full_reported = False
+                await self._push_batch(client, batch)
+        except asyncio.CancelledError:
+            if not self.queue.empty():
+                self._status_logger.warning(
+                    "Loki worker stopped with pending records (service=%s, pending_records=%d)",
+                    self.service_name,
+                    self.queue.qsize(),
+                )
+            raise
+        except Exception as exc:
+            self._status_logger.error(
+                "Loki log worker stopped unexpectedly (service=%s, error=%s)",
+                self.service_name,
+                type(exc).__name__,
+            )
+        finally:
+            if client is not None:
+                try:
+                    await client.aclose()
+                except Exception as exc:
+                    self._status_logger.warning(
+                        "Failed to close Loki HTTP client (service=%s, error=%s)",
+                        self.service_name,
+                        type(exc).__name__,
                     )
-                await asyncio.sleep(0.5)
-            except asyncio.CancelledError:
-                break
-            except Exception:
-                await asyncio.sleep(1.0)
-        await client.aclose()
+
+    async def _push_batch(self, client: httpx.AsyncClient, batch):
+        streams_map: Dict[str, list] = {}
+        for level, timestamp_ns, msg in batch:
+            streams_map.setdefault(level, []).append([timestamp_ns, msg])
+
+        streams = [
+            {"stream": {"service": self.service_name, "level": level}, "values": values}
+            for level, values in streams_map.items()
+        ]
+        payload = {"streams": streams}
+
+        for attempt in range(1, self.MAX_PUSH_ATTEMPTS + 1):
+            try:
+                response = await client.post(
+                    self.loki_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                )
+                response.raise_for_status()
+                return
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                error = f"HTTP {status_code}"
+                retryable = status_code == 429 or status_code >= 500
+            except httpx.RequestError as exc:
+                error = type(exc).__name__
+                retryable = True
+            except Exception as exc:
+                self._status_logger.error(
+                    "Loki push failed without retry (service=%s, error=%s)",
+                    self.service_name,
+                    type(exc).__name__,
+                )
+                return
+
+            if not retryable:
+                self._status_logger.error(
+                    "Loki rejected a log batch (service=%s, error=%s)",
+                    self.service_name,
+                    error,
+                )
+                return
+
+            if attempt == self.MAX_PUSH_ATTEMPTS:
+                self._status_logger.error(
+                    "Dropping Loki log batch after %d failed attempts (service=%s, error=%s, records=%d)",
+                    self.MAX_PUSH_ATTEMPTS,
+                    self.service_name,
+                    error,
+                    len(batch),
+                )
+                return
+
+            self._status_logger.warning(
+                "Loki push failed; retrying attempt %d/%d (service=%s, error=%s)",
+                attempt,
+                self.MAX_PUSH_ATTEMPTS,
+                self.service_name,
+                error,
+            )
+            await asyncio.sleep(self.RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1)))
 
 
 class Telemetry:
@@ -160,6 +292,10 @@ class Telemetry:
 
     async def start(self):
         await self.loki_handler.start_worker()
+
+    async def stop(self):
+        await self.loki_handler.stop_worker()
+        self.tracer_provider.shutdown()
 
     def setup_middleware(self, app: FastAPI):
         @app.middleware("http")

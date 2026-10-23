@@ -7,6 +7,9 @@ import { EvaluationSummaryCard } from "./EvaluationSummaryCard"
 import { RecentActivityFeed } from "./RecentActivityFeed"
 import { IncidentDetailModal } from "./IncidentDetailModal"
 import { ErrorBoundary } from "../common/ErrorBoundary"
+import { Plus } from "lucide-react"
+import { Button } from "../common/Button"
+import { ConnectApplicationModal } from "../applications/ConnectApplicationModal"
 import { mockIncidents } from "../../mocks/incidents"
 import { mockServices } from "../../mocks/services"
 import { mockRecentActivities } from "../../mocks/activities"
@@ -26,6 +29,8 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
 }) => {
   const [localIncidentId, setLocalIncidentId] = useState<string | null>(null)
   const [currentDateTime, setCurrentDateTime] = useState("")
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false)
+  const [hasRegisteredApp, setHasRegisteredApp] = useState(false)
 
   const activeIncidentId = selectedIncidentId || localIncidentId
   const activeModalIncident = activeIncidentId
@@ -65,7 +70,7 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Greeting & Real-time Clock Header matching reference */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-semibold text-bone tracking-tight">
             Good evening, Afwaan
@@ -75,10 +80,22 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
           </p>
         </div>
 
-        <div className="text-right">
-          <div className="font-mono text-xs sm:text-sm text-dust font-medium">
+        <div className="flex items-center gap-3">
+          <div className="font-mono text-xs sm:text-sm text-dust font-medium text-right hidden md:block">
             {currentDateTime || "Tue, 27 Aug 2024 19:42:08"}
           </div>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => {
+              setHasRegisteredApp(false)
+              setIsConnectModalOpen(true)
+            }}
+            className="flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Connect Application</span>
+          </Button>
         </div>
       </div>
 
@@ -142,6 +159,21 @@ export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({
         onClose={handleCloseModal}
         onNavigateToIncidentsTab={() => onNavigateToTab?.("incidents")}
         onOpenWorkspace={onOpenInvestigationWorkspace}
+      />
+
+      {/* Connect Application Modal */}
+      <ConnectApplicationModal
+        isOpen={isConnectModalOpen}
+        onClose={() => {
+          setIsConnectModalOpen(false)
+          if (hasRegisteredApp && onNavigateToTab) {
+            setHasRegisteredApp(false)
+            onNavigateToTab("services")
+          }
+        }}
+        onSuccess={() => {
+          setHasRegisteredApp(true)
+        }}
       />
     </div>
   )

@@ -29,8 +29,9 @@ Covers:
    - Execution budget limits (max steps, max tokens, max tools)
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
+import math
 import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
@@ -195,6 +196,78 @@ def test_evidence_collector_partial_tool_failure():
     assert len(loki_logs) == 1
     assert loki_logs[0]["status"] == "ERROR"
     assert "timeout" in loki_logs[0]["error"].lower()
+
+
+def test_slow_query_collection_skips_non_finite_metrics_and_targets_telemetry():
+    """Slow-query investigations collect the matching signal without persisting NaN."""
+    mock_prom = MagicMock()
+
+    def query_prometheus(query_in):
+        if "histogram_quantile" in query_in.query:
+            return PrometheusQueryResult(
+                status=EvidenceStatus.SUCCESS,
+                series=[
+                    MetricSeries(
+                        labels={"service": "orders", "endpoint": "/health"},
+                        values=[MetricSample(timestamp=1700000000.0, value=float("nan"))],
+                    ),
+                    MetricSeries(
+                        labels={"service": "orders", "endpoint": "/orders"},
+                        values=[MetricSample(timestamp=1700000000.0, value=2.425)],
+                    ),
+                ],
+                series_count=2,
+            )
+        if "slow_queries_total" in query_in.query:
+            return PrometheusQueryResult(
+                status=EvidenceStatus.SUCCESS,
+                series=[
+                    MetricSeries(
+                        labels={"service": "orders"},
+                        values=[MetricSample(timestamp=1700000000.0, value=6.0)],
+                    )
+                ],
+                series_count=1,
+            )
+        return PrometheusQueryResult(status=EvidenceStatus.EMPTY, series=[], series_count=0)
+
+    mock_prom.query_instant.side_effect = query_prometheus
+    mock_loki = MagicMock()
+    mock_loki.query_logs.side_effect = Exception("test query captured")
+    mock_jaeger = MagicMock()
+    mock_jaeger.search_traces.side_effect = Exception("test query captured")
+    mock_git = MagicMock()
+    mock_git.get_commits.side_effect = Exception("test query captured")
+
+    collector = EvidenceCollector(
+        prometheus_tool=mock_prom,
+        loki_tool=mock_loki,
+        jaeger_tool=mock_jaeger,
+        git_tool=mock_git,
+    )
+    evidence, _ = collector.collect_for_incident(
+        {
+            "id": "INC-SLOW-001",
+            "service": "orders",
+            "title": "Slow queries detected in orders service",
+            "summary": "Slow query warnings and high p95 latency on GET /orders",
+        },
+        ExecutionBudget(max_tool_calls=10),
+        BudgetConsumption(),
+    )
+
+    metric_values = [e.value for e in evidence if e.source == EvidenceType.METRIC]
+    assert 2.425 in metric_values
+    assert 6.0 in metric_values
+    assert all(math.isfinite(value) for value in metric_values)
+    assert any(
+        "slow_queries_total" in call.args[0].query
+        for call in mock_prom.query_instant.call_args_list
+    )
+    assert '"Slow query"' in mock_loki.query_logs.call_args.args[0].query
+    jaeger_query = mock_jaeger.search_traces.call_args.args[0]
+    assert jaeger_query.tags is None
+    assert jaeger_query.min_duration == "300ms"
 
 
 def test_evidence_collector_all_tools_unavailable():
@@ -623,6 +696,43 @@ def test_pipeline_idempotency_duplicate_delivery(db_session: Session):
     assert result.root_cause == "cpu_saturation"
     assert result.termination_reason == "Already investigated (idempotent)"
     mock_generator.generate_hypotheses.assert_not_called()
+
+
+def test_pipeline_reinitializes_stale_in_progress_run_without_force(db_session: Session):
+    old_started_at = datetime.now(timezone.utc) - timedelta(days=365)
+    db_session.add(InvestigationModel(
+        id="INV-INC-STALE-001",
+        incident_id="INC-STALE-001",
+        state=InvestigationState.GENERATING_HYPOTHESES.value,
+        current_step=2,
+        evidence=[],
+        hypotheses=[],
+        evaluation={},
+        tool_executions=[],
+        budget_consumed={},
+        started_at=old_started_at,
+    ))
+    db_session.commit()
+
+    collector = MagicMock(spec=EvidenceCollector)
+    collector.collect_for_incident.return_value = ([], [])
+    pipeline = InvestigationPipeline(db=db_session, evidence_collector=collector)
+
+    result = pipeline.run({
+        "id": "INC-STALE-001",
+        "service": "orders",
+        "title": "Stale Orders investigation",
+        "summary": "Resume stale investigation without force.",
+    })
+
+    persisted = db_session.query(InvestigationModel).filter_by(id="INV-INC-STALE-001").one()
+    assert result.status is InvestigationState.INSUFFICIENT_EVIDENCE
+    assert persisted.state == InvestigationState.INSUFFICIENT_EVIDENCE.value
+    persisted_started_at = persisted.started_at
+    if persisted_started_at.tzinfo is None:
+        persisted_started_at = persisted_started_at.replace(tzinfo=timezone.utc)
+    assert persisted_started_at > old_started_at
+    collector.collect_for_incident.assert_called_once()
 
 
 def test_pipeline_fallback_to_deterministic_baseline_when_llm_fails(db_session: Session):

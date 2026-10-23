@@ -35,13 +35,18 @@ held_connections: list = []
 async def lifespan(app: FastAPI):
     await telemetry.start()
     telemetry.logger.info("Orders service initialized and ready.")
-    yield
-    # Cleanup held connections if any on shutdown
-    for conn in held_connections:
+    try:
+        yield
+    finally:
         try:
-            conn.close()
-        except Exception:
-            pass
+            # Cleanup held connections if any on shutdown
+            for conn in held_connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        finally:
+            await telemetry.stop()
 
 
 app = FastAPI(title="Sherlog Orders Service", version="1.0.0", lifespan=lifespan)

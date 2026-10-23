@@ -33,7 +33,7 @@ groups:
           description: "Orders service timed out attempting to communicate with payments downstream"
 
       - alert: SlowQueryDetected
-        expr: rate(slow_queries_total[1m]) > 0 or slow_queries_total > 0
+        expr: increase(slow_queries_total[1m]) > 0
         for: 5s
         labels:
           severity: warning

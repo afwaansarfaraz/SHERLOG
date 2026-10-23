@@ -24,7 +24,10 @@ telemetry = Telemetry(
 async def lifespan(app: FastAPI):
     await telemetry.start()
     telemetry.logger.info("Payments service initialized and ready.")
-    yield
+    try:
+        yield
+    finally:
+        await telemetry.stop()
 
 
 app = FastAPI(title="Sherlog Payments Service", version="1.0.0", lifespan=lifespan)

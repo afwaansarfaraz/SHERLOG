@@ -242,6 +242,24 @@ export class ApiClient {
     this.defaultTimeoutMs = defaultTimeoutMs
   }
 
+  private isApiOrigin(url: string): boolean {
+    if (url.startsWith("/") && !url.startsWith("//")) {
+      return true
+    }
+    try {
+      const targetOrigin = new URL(url).origin
+      if (this.baseUrl.startsWith("http://") || this.baseUrl.startsWith("https://")) {
+        return targetOrigin === new URL(this.baseUrl).origin
+      }
+      if (typeof window !== "undefined" && window.location) {
+        return targetOrigin === window.location.origin
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
   /**
    * Safe fetch with timeouts, deduplication, retry handling, and typed error parsing
    */
@@ -249,7 +267,9 @@ export class ApiClient {
     const method = (options.method || "GET").toUpperCase()
     const isIdempotent = ["GET", "HEAD", "OPTIONS"].includes(method)
     let url: string
-    if (endpoint.startsWith("http")) {
+    if (endpoint.startsWith("//")) {
+      url = endpoint
+    } else if (endpoint.startsWith("http")) {
       url = endpoint
     } else if (this.baseUrl && (endpoint === this.baseUrl || endpoint.startsWith(`${this.baseUrl}/`))) {
       url = endpoint
@@ -327,6 +347,14 @@ export class ApiClient {
     }
     if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json")
+    }
+    if (!options.skipAuth && !headers.has("Authorization") && this.isApiOrigin(url)) {
+      const token = typeof localStorage !== "undefined"
+        ? localStorage.getItem("sherlog_api_key") || localStorage.getItem("sherlog_token")
+        : null
+      if (token && token.trim()) {
+        headers.set("Authorization", `Bearer ${token.trim()}`)
+      }
     }
 
     try {

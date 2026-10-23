@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Determine project repository root (three levels up from backend/app/config.py)
@@ -28,6 +29,16 @@ class Settings(BaseSettings):
     PORT: int = 8080
     HOST: str = "0.0.0.0"
     API_V1_PREFIX: str = "/api"
+
+    # Demo & Onboarding data seeding
+    ENABLE_DEMO_SEEDING: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def set_default_demo_seeding(self) -> "Settings":
+        """Demo seeding is enabled by default in demo/development and disabled otherwise."""
+        if self.ENABLE_DEMO_SEEDING is None:
+            self.ENABLE_DEMO_SEEDING = self.APP_ENV.lower() in ("development", "demo")
+        return self
 
     # Security & Authentication (never hardcoded, set via environment)
     WEBHOOK_SECRET: Optional[str] = None

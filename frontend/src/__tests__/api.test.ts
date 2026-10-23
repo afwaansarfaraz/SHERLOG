@@ -73,6 +73,97 @@ describe("Sherlog Hardened API Client", () => {
     })
   })
 
+  describe("Authorization Header Handling", () => {
+    beforeEach(() => {
+      if (typeof localStorage !== "undefined") {
+        localStorage.clear()
+      }
+    })
+
+    afterEach(() => {
+      if (typeof localStorage !== "undefined") {
+        localStorage.clear()
+      }
+    })
+
+    it("attaches Authorization header when stored credential exists and URL is API origin", async () => {
+      localStorage.setItem("sherlog_token", "my-secret-token")
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("/incidents")
+      expect(sentHeaders?.get("Authorization")).toBe("Bearer my-secret-token")
+    })
+
+    it("does not attach Authorization header to cross-origin requests", async () => {
+      localStorage.setItem("sherlog_token", "my-secret-token")
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("http://thirdparty.com/telemetry")
+      expect(sentHeaders?.get("Authorization")).toBeNull()
+    })
+
+    it("does not treat a protocol-relative URL as the API origin", async () => {
+      localStorage.setItem("sherlog_token", "my-secret-token")
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("//attacker.example/telemetry")
+      expect(sentHeaders?.get("Authorization")).toBeNull()
+    })
+
+    it("does not attach Authorization header when no stored credential exists", async () => {
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("/incidents")
+      expect(sentHeaders?.get("Authorization")).toBeNull()
+    })
+
+    it("respects skipAuth option", async () => {
+      localStorage.setItem("sherlog_token", "my-secret-token")
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("/public", { skipAuth: true })
+      expect(sentHeaders?.get("Authorization")).toBeNull()
+    })
+
+    it("preserves explicit caller Authorization header", async () => {
+      localStorage.setItem("sherlog_token", "stored-token")
+      let sentHeaders: Headers | undefined
+      global.fetch = vi.fn((_url, options?: RequestInit) => {
+        sentHeaders = options?.headers as Headers
+        return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+      }) as unknown as typeof fetch
+
+      const client = new ApiClient("/api")
+      await client.get("/custom", { headers: { Authorization: "Bearer custom-override" } })
+      expect(sentHeaders?.get("Authorization")).toBe("Bearer custom-override")
+    })
+  })
+
   describe("Timeout Handling", () => {
     it("throws ApiTimeoutError when request duration exceeds timeoutMs", async () => {
       global.fetch = vi.fn((_url, options?: RequestInit) => {

@@ -49,6 +49,10 @@ export function App() {
       return { type: "tab", tab: cleanHash as NavItemKey }
     }
 
+    if (cleanHash === "applications") {
+      return { type: "tab", tab: "services" }
+    }
+
     if (cleanHash.startsWith("workspace")) {
       const parts = cleanHash.split(":")
       const id = parts[1] || "INC00241"

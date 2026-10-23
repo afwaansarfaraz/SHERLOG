@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       key: "services" as NavItemKey,
-      label: "Services",
+      label: "Applications",
       icon: Server,
     },
     {

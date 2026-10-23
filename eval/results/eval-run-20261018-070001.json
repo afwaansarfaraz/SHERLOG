@@ -1,0 +1,258 @@
+{
+  "run_id": "eval-run-20261018-070001",
+  "timestamp": "2026-10-18T07:00:01.102031+00:00",
+  "evaluator_name": "Pytest Baseline Runner",
+  "total_scenarios": 10,
+  "passed_scenarios": 10,
+  "failed_scenarios": 0,
+  "top_1_accuracy": 100.0,
+  "top_3_accuracy": 100.0,
+  "avg_latency_ms": 0.15,
+  "results": [
+    {
+      "scenario_id": "SCN-001",
+      "name": "Orders DB Connection Pool Exhaustion",
+      "fault_id": "db_pool_exhaustion",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": "database_connection_pool_exhaustion",
+      "ranked_hypotheses": [
+        "database_connection_pool_exhaustion"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 180.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'DbPoolExhausted'",
+        "Incident description identifies connection pool saturation",
+        "Metric 'db_pool_exhaustion_errors_total' elevated at 14.0",
+        "Active DB connections saturated at 30.0",
+        "Log matches pool exhaustion signature: \"QueuePool limit of size 10 overflow 20 reached, connection timed out, timeout 30\""
+      ],
+      "recommended_remediation": "increase_db_connection_pool_size",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.18
+    },
+    {
+      "scenario_id": "SCN-002",
+      "name": "Orders Heavy Database Query Latency",
+      "fault_id": "slow_query",
+      "expected_root_cause": "slow_database_query",
+      "predicted_root_cause": "slow_database_query",
+      "ranked_hypotheses": [
+        "slow_database_query"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 160.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'SlowQueryDetected'",
+        "Metric 'slow_queries_total' elevated at 9.0",
+        "High P95 latency detected: 1.82s",
+        "Log matches slow query signature: \"Slow query fault active: executing heavy DB query with delay=1.8s\""
+      ],
+      "recommended_remediation": "optimize_query_or_add_index",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.69
+    },
+    {
+      "scenario_id": "SCN-003",
+      "name": "Payments Downstream Dependency Timeout",
+      "fault_id": "dependency_timeout",
+      "expected_root_cause": "downstream_dependency_timeout",
+      "predicted_root_cause": "downstream_dependency_timeout",
+      "ranked_hypotheses": [
+        "downstream_dependency_timeout"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 165.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'DependencyTimeout'",
+        "Metric 'dependency_timeouts_total' elevated at 18.0",
+        "Trace span returned HTTP 504 Gateway Timeout",
+        "Log matches dependency timeout signature: \"Downstream dependency timeout calling Payments service for Order #401: Payment s\""
+      ],
+      "recommended_remediation": "increase_downstream_timeout",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.13
+    },
+    {
+      "scenario_id": "SCN-004",
+      "name": "API Gateway Sudden Traffic Surge",
+      "fault_id": "traffic_spike",
+      "expected_root_cause": "sudden_traffic_spike",
+      "predicted_root_cause": "sudden_traffic_spike",
+      "ranked_hypotheses": [
+        "sudden_traffic_spike"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 145.0,
+      "evidence_count": 2,
+      "supporting_evidence": [
+        "Alert fired: 'TrafficSpikeDetected'",
+        "Incident description cites sudden traffic surge",
+        "High request volume metric 'http_requests_total_rate': 175.0/s",
+        "Log matches traffic surge signature: \"Sudden traffic spike: high concurrency load exceeding capacity on /checkout\""
+      ],
+      "recommended_remediation": "apply_rate_limiting_and_scale",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.09
+    },
+    {
+      "scenario_id": "SCN-005",
+      "name": "Orders Service Downstream Configuration Error",
+      "fault_id": "configuration_error",
+      "expected_root_cause": "invalid_service_configuration",
+      "predicted_root_cause": "invalid_service_configuration",
+      "ranked_hypotheses": [
+        "invalid_service_configuration"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 190.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'ConfigError'",
+        "Incident description cites configuration failure",
+        "Trace span returned HTTP 502 Bad Gateway (connection setup failure)",
+        "Configuration diff indicates invalid URL setting: http://invalid-payments-endpoint:9999",
+        "Log matches configuration error signature: \"Downstream connection error calling Payments at http://invalid-payments-endpoint\""
+      ],
+      "recommended_remediation": "revert_configuration_change",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.09
+    },
+    {
+      "scenario_id": "SCN-006",
+      "name": "Payments Service Memory Leak and Heap Exhaustion",
+      "fault_id": "memory_leak",
+      "expected_root_cause": "memory_leak_exhaustion",
+      "predicted_root_cause": "memory_leak_exhaustion",
+      "ranked_hypotheses": [
+        "memory_leak_exhaustion"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 180.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'MemoryLeakDetected'",
+        "Memory metric 'process_resident_memory_bytes_ratio' elevated above threshold: 0.95",
+        "Log matches memory exhaustion signature: \"OOMKilled: RSS memory consumption leak detected in worker container\"",
+        "Process terminated with exit code 137 (OOMKilled)"
+      ],
+      "recommended_remediation": "restart_service_and_inspect_heap",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.08
+    },
+    {
+      "scenario_id": "SCN-007",
+      "name": "DB Pool Exhaustion With Benign Log Noise",
+      "fault_id": "db_pool_exhaustion",
+      "expected_root_cause": "database_connection_pool_exhaustion",
+      "predicted_root_cause": "database_connection_pool_exhaustion",
+      "ranked_hypotheses": [
+        "database_connection_pool_exhaustion"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 130.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'DbPoolExhausted'",
+        "Metric 'db_pool_exhaustion_errors_total' elevated at 8.0",
+        "Log matches pool exhaustion signature: \"QueuePool limit of size 10 overflow 20 reached, connection timed out, timeout 30\""
+      ],
+      "recommended_remediation": "increase_db_connection_pool_size",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.08
+    },
+    {
+      "scenario_id": "SCN-008",
+      "name": "Slow Query With Multi-Table Read Delay",
+      "fault_id": "slow_query",
+      "expected_root_cause": "slow_database_query",
+      "predicted_root_cause": "slow_database_query",
+      "ranked_hypotheses": [
+        "slow_database_query"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 160.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'SlowQueryDetected'",
+        "High P95 latency detected: 2.25s",
+        "Metric 'slow_queries_total' elevated at 15.0",
+        "Log matches slow query signature: \"Query execution exceeded threshold: heavy DB query finished in 2.21s\""
+      ],
+      "recommended_remediation": "optimize_query_or_add_index",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.08
+    },
+    {
+      "scenario_id": "SCN-009",
+      "name": "Dependency Timeout Under Retry Pressure",
+      "fault_id": "dependency_timeout",
+      "expected_root_cause": "downstream_dependency_timeout",
+      "predicted_root_cause": "downstream_dependency_timeout",
+      "ranked_hypotheses": [
+        "downstream_dependency_timeout"
+      ],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "HIGH",
+      "score": 165.0,
+      "evidence_count": 3,
+      "supporting_evidence": [
+        "Alert fired: 'DependencyTimeout'",
+        "Metric 'dependency_timeouts_total' elevated at 32.0",
+        "Trace span returned HTTP 504 Gateway Timeout",
+        "Log matches dependency timeout signature: \"Downstream dependency timeout calling Payments service for Order #882: Payment s\""
+      ],
+      "recommended_remediation": "increase_downstream_timeout",
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.06
+    },
+    {
+      "scenario_id": "SCN-010",
+      "name": "Vague Uncorrelated Incident with Insufficient Evidence",
+      "fault_id": "none_unmatched",
+      "expected_root_cause": "INSUFFICIENT_EVIDENCE",
+      "predicted_root_cause": null,
+      "ranked_hypotheses": [],
+      "top_1_match": true,
+      "top_3_match": true,
+      "confidence": "INSUFFICIENT_EVIDENCE",
+      "score": 0.0,
+      "evidence_count": 0,
+      "supporting_evidence": [],
+      "recommended_remediation": null,
+      "passed": true,
+      "failure_reason": null,
+      "execution_time_ms": 0.02
+    }
+  ],
+  "failed_cases": []
+}

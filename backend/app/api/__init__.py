@@ -7,6 +7,8 @@ from backend.app.api.knowledge import router as knowledge_router
 from backend.app.api.investigations import router as investigations_router
 from backend.app.api.settings import router as settings_router
 from backend.app.api.evaluations import router as evaluations_router
+from backend.app.api.applications import router as applications_router
+from backend.app.api.webhooks import router as webhooks_router
 
 api_router = APIRouter()
 api_router.include_router(incidents_router, prefix="/incidents", tags=["incidents"])
@@ -14,6 +16,8 @@ api_router.include_router(knowledge_router, prefix="/knowledge", tags=["knowledg
 api_router.include_router(investigations_router, prefix="/investigations", tags=["investigations"])
 api_router.include_router(settings_router, prefix="/settings", tags=["settings"])
 api_router.include_router(evaluations_router, prefix="/evaluations", tags=["evaluations"])
+api_router.include_router(applications_router, prefix="/applications", tags=["applications"])
+api_router.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])
 
 # Direct alias for /audit-logs
 from backend.app.api.investigations import get_audit_log, AuditLogEntry

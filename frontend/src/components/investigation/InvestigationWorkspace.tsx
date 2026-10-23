@@ -15,12 +15,30 @@ import { Card } from "../common/Card"
 import { ErrorBoundary } from "../common/ErrorBoundary"
 import { useInvestigation } from "../../hooks/useInvestigation"
 import { useToast } from "../../hooks/useToast"
-import type { InvestigationTab } from "../../types"
+import type { InvestigationStep, InvestigationTab } from "../../types"
 
 interface InvestigationWorkspaceProps {
   incidentId?: string
   onBackToOverview: () => void
 }
+
+const RealToolActivity: React.FC<{ steps: InvestigationStep[] }> = ({ steps }) => (
+  <Card className="p-4 space-y-3">
+    <h3 className="text-xs font-semibold text-bone uppercase tracking-wider font-mono">Telemetry Tool Runs</h3>
+    {steps.length === 0 ? (
+      <p className="text-xs text-dust">No telemetry tool execution details were returned.</p>
+    ) : (
+      <div className="space-y-3">
+        {steps.map((step) => (
+          <div key={step.id} className="border-l border-ash pl-3">
+            <p className="text-xs text-bone">{step.title} · {step.status}</p>
+            {step.details && <p className="text-[11px] text-dust mt-1 break-words">{step.details}</p>}
+          </div>
+        ))}
+      </div>
+    )}
+  </Card>
+)
 
 export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   incidentId,
@@ -30,6 +48,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
   const {
     data,
+    isLoading,
+    investigationError,
+    retryInvestigation,
+    demoWorkspace,
     activeTab,
     setActiveTab,
     stepIndex,
@@ -81,6 +103,30 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     { key: "agent-activity", label: "Activity" },
   ]
 
+  if (!demoWorkspace && isLoading) {
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <InvestigationHeader
+          incidentId={data.incidentId}
+          title={data.title}
+          service={data.service}
+          subtitle={data.summary}
+          openedAt={data.openedAt}
+          status={data.status}
+          isPlaying={false}
+          currentStep={0}
+          totalSteps={0}
+          showSimulationControls={false}
+          onBack={onBackToOverview}
+          onTogglePlay={() => undefined}
+          onReset={() => undefined}
+          onComplete={() => undefined}
+        />
+        <Card className="p-5 text-sm text-dust">Loading persisted incident investigation and telemetry evidence…</Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. Header with Breadcrumb and Meta */}
@@ -95,12 +141,39 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           isPlaying={isPlaying}
           currentStep={stepIndex}
           totalSteps={data.steps.length}
+          showSimulationControls={demoWorkspace}
           onBack={onBackToOverview}
           onTogglePlay={togglePlaySimulation}
           onReset={resetSimulation}
           onComplete={completeSimulation}
         />
       </ErrorBoundary>
+
+      {!demoWorkspace && (investigationError || data.status === "INVESTIGATING") && (
+        <Card
+          role={investigationError ? "alert" : "status"}
+          className="flex flex-wrap items-center justify-between gap-3 p-4 border-[#572124] bg-[#2E1618]"
+        >
+          <div>
+            <p className="text-sm font-semibold text-bone">
+              {investigationError
+                ? data.status === "FAILED" ? "Investigation failed" : "Investigation unavailable"
+                : "Investigation still in progress"}
+            </p>
+            <p className="text-xs text-dust mt-1">
+              {investigationError || "The persisted run has not reached a terminal state. Retry to resume it if it has gone stale."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void retryInvestigation()}
+            disabled={isLoading}
+            className="px-3 py-2 rounded border border-ash text-xs font-medium text-bone hover:bg-ink disabled:opacity-50"
+          >
+            {isLoading ? "Investigating…" : "Retry investigation"}
+          </button>
+        </Card>
+      )}
 
       {/* 2. Main Investigation Canvas (3 Columns matching reference layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -156,9 +229,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     />
                   </ErrorBoundary>
 
-                  <ErrorBoundary moduleName="Evidence Summary">
-                    <EvidenceSummaryCards onViewAllEvidence={() => setActiveTab("evidence")} />
-                  </ErrorBoundary>
+                  {demoWorkspace && (
+                    <ErrorBoundary moduleName="Evidence Summary">
+                      <EvidenceSummaryCards onViewAllEvidence={() => setActiveTab("evidence")} />
+                    </ErrorBoundary>
+                  )}
                 </div>
               )}
 
@@ -184,25 +259,49 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
               {activeTab === "logs" && (
                 <ErrorBoundary moduleName="Logs Viewer">
-                  <LogsView logs={data.logs} />
+                  {demoWorkspace ? (
+                    <LogsView logs={data.logs} />
+                  ) : (
+                    <EvidenceDetailView
+                      evidence={data.evidence.filter((item) => item.type === "log")}
+                      expandedIds={expandedEvidenceIds}
+                      onToggleExpand={toggleEvidenceExpanded}
+                    />
+                  )}
                 </ErrorBoundary>
               )}
 
               {activeTab === "metrics" && (
                 <ErrorBoundary moduleName="Metrics Telemetry">
-                  <MetricsView />
+                  {demoWorkspace ? (
+                    <MetricsView />
+                  ) : (
+                    <EvidenceDetailView
+                      evidence={data.evidence.filter((item) => item.type === "metric")}
+                      expandedIds={expandedEvidenceIds}
+                      onToggleExpand={toggleEvidenceExpanded}
+                    />
+                  )}
                 </ErrorBoundary>
               )}
 
               {activeTab === "traces" && (
                 <ErrorBoundary moduleName="Trace Waterfall">
-                  <TracesView traces={data.traces} />
+                  {demoWorkspace ? (
+                    <TracesView traces={data.traces} />
+                  ) : (
+                    <EvidenceDetailView
+                      evidence={data.evidence.filter((item) => item.type === "trace")}
+                      expandedIds={expandedEvidenceIds}
+                      onToggleExpand={toggleEvidenceExpanded}
+                    />
+                  )}
                 </ErrorBoundary>
               )}
 
               {activeTab === "agent-activity" && (
                 <ErrorBoundary moduleName="Agent Tool Activity">
-                  <LiveActivityStream />
+                  {demoWorkspace ? <LiveActivityStream /> : <RealToolActivity steps={data.steps} />}
                 </ErrorBoundary>
               )}
             </div>
@@ -212,12 +311,17 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         {/* Right Column (12 cols on lg, 3 cols on xl): Live Agent Activity Stream */}
         <div className="lg:col-span-12 xl:col-span-3 flex flex-col space-y-4 min-w-0">
           <ErrorBoundary moduleName="Live Activity Feed">
-            <LiveActivityStream />
+            {demoWorkspace ? (
+              <LiveActivityStream />
+            ) : (
+              <RealToolActivity steps={data.steps} />
+            )}
           </ErrorBoundary>
         </div>
       </div>
 
       {/* 3. Bottom Dock: Proposed Root Cause & Remediation Approval */}
+      {data.remediation.id && (demoWorkspace || data.status === "RESOLVED") && (
       <ErrorBoundary moduleName="Remediation Approval Dock">
         <RemediationDock
           remediation={data.remediation}
@@ -230,6 +334,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           onOpenDiff={() => setIsDiffModalOpen(true)}
         />
       </ErrorBoundary>
+      )}
 
       {/* 4. Configuration Diff Modal */}
       <ConfigDiffModal

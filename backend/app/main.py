@@ -37,6 +37,23 @@ def create_app() -> FastAPI:
     if settings.API_V1_PREFIX != "/api/v1":
         app.include_router(api_router, prefix="/api/v1")
 
+    @app.on_event("startup")
+    def on_startup():
+        """Seed demo applications on startup if database is empty and demo seeding is enabled."""
+        if not settings.ENABLE_DEMO_SEEDING:
+            return
+        try:
+            from backend.app.db.session import SessionLocal
+            from backend.app.api.applications import seed_default_applications
+            db = SessionLocal()
+            try:
+                seed_default_applications(db)
+            finally:
+                db.close()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Startup application seeding skipped: %s", exc)
+
     return app
 
 

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     ORDERS_TIMEOUT_SEC: float = 5.0
 
     # Webhook security
-    WEBHOOK_SECRET: str = "sherlog-webhook-secret-key"
+    WEBHOOK_SECRET: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

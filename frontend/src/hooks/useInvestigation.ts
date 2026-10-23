@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import {
   mockInvestigationDataINC00241,
   mockInvestigationSteps,
@@ -20,10 +20,78 @@ import type {
   AuditLogEntry,
 } from "../types"
 
+const inFlightInvestigationTriggers = new Map<string, Promise<any>>()
+
+function isDemoIncident(incidentId?: string) {
+  return !incidentId || incidentId === "INC00241" || incidentId === "INC-00241"
+}
+
+function emptyInvestigationData(incidentId: string): IncidentInvestigationData {
+  const remediation: RemediationProposal = {
+    id: "",
+    incidentId,
+    rootCauseTitle: "",
+    rootCauseDescription: "",
+    actionTitle: "",
+    actionDescription: "",
+    targetService: "",
+    allowlistedAction: "",
+    configDiff: "",
+    status: "AWAITING_APPROVAL",
+  }
+  return {
+    incidentId,
+    title: "Loading incident investigation…",
+    service: "",
+    status: "INVESTIGATING",
+    openedAt: "",
+    summary: "Loading persisted investigation results.",
+    steps: [],
+    hypotheses: [],
+    evidence: [],
+    logs: [],
+    traces: [],
+    remediation,
+    retrievedSources: [],
+    retrievalStatus: "NOT_ATTEMPTED",
+  }
+}
+
+function triggerInvestigation(incidentId: string, force = false) {
+  const key = `${incidentId}:${force}`
+  const existing = inFlightInvestigationTriggers.get(key)
+  if (existing) return existing
+
+  const pending = api
+    .post("/api/v1/investigations/trigger", {
+      incident_id: incidentId,
+      force,
+    }, {
+      // The backend pipeline is bounded at 120 seconds; give it a small transport margin.
+      timeoutMs: 130_000,
+    })
+    .finally(() => {
+      inFlightInvestigationTriggers.delete(key)
+    })
+  inFlightInvestigationTriggers.set(key, pending)
+  return pending
+}
+
 export function useInvestigation(targetIncidentId?: string) {
-  const [data, setData] = useState<IncidentInvestigationData>(mockInvestigationDataINC00241)
+  const currentTargetIncidentId = useRef(targetIncidentId)
+  currentTargetIncidentId.current = targetIncidentId
+
+  const [data, setData] = useState<IncidentInvestigationData>(() =>
+    isDemoIncident(targetIncidentId)
+      ? mockInvestigationDataINC00241
+      : emptyInvestigationData(targetIncidentId!)
+  )
+  const [isLoading, setIsLoading] = useState(Boolean(targetIncidentId && !isDemoIncident(targetIncidentId)))
+  const [investigationError, setInvestigationError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<InvestigationTab>("hypotheses")
-  const [stepIndex, setStepIndex] = useState<number>(mockInvestigationSteps.length) // Default fully completed view
+  const [stepIndex, setStepIndex] = useState<number>(
+    isDemoIncident(targetIncidentId) ? mockInvestigationSteps.length : 0
+  )
   const [isPlaying, setIsPlaying] = useState<boolean>(false)
   const [approvalStatus, setApprovalStatus] =
     useState<RemediationApprovalStatus>("AWAITING_APPROVAL")
@@ -36,6 +104,101 @@ export function useInvestigation(targetIncidentId?: string) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  const applyInvestigationResponse = useCallback((res: any, incidentId: string) => {
+    const mappedHypotheses: Hypothesis[] = (res.hypotheses || []).map(
+      (h: any, idx: number) => ({
+        id: h.id || `h${idx + 1}`,
+        rank: h.rank || idx + 1,
+        title: h.title || h.root_cause || "Hypothesis",
+        description: h.causal_explanation || "",
+        score: Number(h.score ?? 0),
+        likelihood: (h.likelihood || "POSSIBLE") as HypothesisLikelihood,
+        supportingEvidenceCount: (h.supporting_evidence || []).length,
+        contradictingEvidenceCount: (h.contradicting_evidence || []).length,
+        verified: Boolean(h.verified),
+        verificationReason: h.causal_explanation,
+      })
+    )
+
+    const mappedEvidence: EvidenceItem[] = (res.evidence || []).map(
+      (e: any, idx: number) => ({
+        id: e.id || `ev-${idx + 1}`,
+        hypothesisId: "h1",
+        type: (e.type || "metric") as EvidenceType,
+        title: e.title || "Evidence Item",
+        polarity: (e.polarity || "neutral") as EvidencePolarity,
+        source: e.source || "investigation-pipeline",
+        timestamp: e.timestamp || new Date().toISOString(),
+        summary: e.summary || e.title,
+        rawSnippet: e.raw_snippet,
+        weight: e.weight || 0,
+      })
+    )
+
+    const mappedSteps: InvestigationStep[] = (res.tool_executions || []).map(
+      (tool: any, idx: number) => ({
+        id: `tool-${idx + 1}`,
+        title: `${String(tool.tool || "Telemetry tool").replace(/Tool$/, "")} query`,
+        status: tool.status === "ERROR" ? "failed" : "completed",
+        timestamp: tool.duration_ms != null ? `${Math.round(tool.duration_ms)} ms` : undefined,
+        details: [tool.query, tool.status, tool.error].filter(Boolean).join(" · "),
+        toolName: tool.tool,
+      })
+    )
+
+    const remediation = res.remediation
+      ? {
+          id: res.remediation.id || `REM-${incidentId}`,
+          incidentId: res.remediation.incident_id || incidentId,
+          rootCauseTitle: res.remediation.root_cause_title || res.root_cause || "Service Degradation",
+          rootCauseDescription: res.remediation.root_cause_description || res.summary || "",
+          actionTitle: res.remediation.action_title || "Remediate Incident",
+          actionDescription: res.remediation.action_description || "",
+          targetService: res.remediation.target_service || res.service || "unknown",
+          allowlistedAction: res.remediation.action_title || "remediation",
+          configDiff: "",
+          status: (res.remediation.status || "AWAITING_APPROVAL") as RemediationApprovalStatus,
+          approvedBy: res.remediation.approved_by,
+          approvedAt: res.remediation.approved_at,
+          rejectionReason: res.remediation.rejection_reason,
+        }
+      : emptyInvestigationData(incidentId).remediation
+
+    setData({
+      incidentId: res.incident_id || incidentId,
+      title: res.summary || `Investigation ${incidentId}`,
+      service: res.service || "unknown",
+      status:
+        res.status === "COMPLETED"
+          ? "RESOLVED"
+          : res.status === "FAILED" || res.status === "INSUFFICIENT_EVIDENCE"
+            ? "FAILED"
+            : "INVESTIGATING",
+      openedAt: res.started_at || "",
+      summary: res.summary || "",
+      steps: mappedSteps,
+      hypotheses: mappedHypotheses,
+      evidence: mappedEvidence,
+      logs: [],
+      traces: [],
+      remediation,
+      retrievedSources: res.retrieved_sources || [],
+      retrievalStatus: res.retrieval_status || "NOT_ATTEMPTED",
+    })
+    setApprovalStatus(remediation.status)
+    setStepIndex(mappedSteps.length)
+    setExpandedEvidenceIds(new Set(mappedEvidence.slice(0, 2).map((item) => item.id)))
+    setInvestigationError(
+      res.is_simulated
+        ? "The backend returned a simulated investigation; it is not verified telemetry."
+        : res.status === "FAILED"
+          ? res.error_message || "The investigation pipeline failed. Retry it after reviewing the pipeline error."
+          : res.status === "INSUFFICIENT_EVIDENCE"
+            ? res.error_message || "The investigation did not collect enough evidence to support a conclusion."
+            : null
+    )
+  }, [])
+
   // Load real investigation data when an incidentId is specified
   useEffect(() => {
     let isMounted = true
@@ -45,8 +208,26 @@ export function useInvestigation(targetIncidentId?: string) {
       if (!targetIncidentId) {
         setData(mockInvestigationDataINC00241)
         setApprovalStatus(mockInvestigationDataINC00241.remediation.status)
+        setIsLoading(false)
+        setInvestigationError(null)
         return
       }
+
+      if (isDemoIncident(targetIncidentId)) {
+        setData(mockInvestigationDataINC00241)
+        setApprovalStatus(mockInvestigationDataINC00241.remediation.status)
+        setStepIndex(mockInvestigationSteps.length)
+        setIsLoading(false)
+        setInvestigationError(null)
+        return
+      }
+
+      setData(emptyInvestigationData(targetIncidentId))
+      setApprovalStatus("AWAITING_APPROVAL")
+      setStepIndex(0)
+      setIsLoading(true)
+      setInvestigationError(null)
+      setAuditLog([])
 
       try {
         let res: any
@@ -59,113 +240,32 @@ export function useInvestigation(targetIncidentId?: string) {
             targetIncidentId !== "INC-00241"
           ) {
             // Trigger investigation on demand if not already run
-            res = await api.post("/api/v1/investigations/trigger", {
-              incident_id: targetIncidentId,
-              force: false,
-            })
-          } else if (
-            targetIncidentId === "INC00241" ||
-            targetIncidentId === "INC-00241"
-          ) {
-            // Demo fallback for mock incident
-            setData(mockInvestigationDataINC00241)
-            setApprovalStatus(mockInvestigationDataINC00241.remediation.status)
-            return
+            res = await triggerInvestigation(targetIncidentId)
           } else {
             throw fetchErr
           }
         }
 
         if (!isMounted || !res) return
+        applyInvestigationResponse(res, targetIncidentId)
 
-        const mappedHypotheses: Hypothesis[] = (res.hypotheses || []).map(
-          (h: any, idx: number) => ({
-            id: h.id || `h${idx + 1}`,
-            rank: h.rank || idx + 1,
-            title: h.title || h.root_cause || "Hypothesis",
-            description: h.causal_explanation || "",
-            score: Math.round(h.score || 50),
-            likelihood: (h.likelihood || "POSSIBLE") as HypothesisLikelihood,
-            supportingEvidenceCount: (h.supporting_evidence || []).length,
-            contradictingEvidenceCount: (h.contradicting_evidence || []).length,
-            verified: idx === 0,
-            verificationReason: h.causal_explanation,
-          })
-        )
-
-        const mappedEvidence: EvidenceItem[] = (res.evidence || []).map(
-          (e: any, idx: number) => ({
-            id: e.id || `ev-${idx + 1}`,
-            hypothesisId: "h1",
-            type: (e.type || "metric") as EvidenceType,
-            title: e.title || "Evidence Item",
-            polarity: (e.polarity || "supporting") as EvidencePolarity,
-            source: e.source || "investigation-pipeline",
-            timestamp: e.timestamp || new Date().toISOString(),
-            summary: e.summary || e.title,
-            weight: 1,
-          })
-        )
-
-        // Map remediation proposal from real backend response
-        let updatedRemediation: RemediationProposal =
-          mockInvestigationDataINC00241.remediation
-        if (res.remediation) {
-          updatedRemediation = {
-            id: res.remediation.id || `REM-${targetIncidentId}`,
-            incidentId: res.remediation.incident_id || targetIncidentId,
-            rootCauseTitle:
-              res.remediation.root_cause_title || res.root_cause || "Service Degradation",
-            rootCauseDescription:
-              res.remediation.root_cause_description || res.summary || "",
-            actionTitle: res.remediation.action_title || "Remediate Incident",
-            actionDescription: res.remediation.action_description || "",
-            targetService: res.remediation.target_service || "orders",
-            allowlistedAction: res.remediation.action_title || "remediation",
-            configDiff: mockInvestigationDataINC00241.remediation.configDiff,
-            status:
-              (res.remediation.status as RemediationApprovalStatus) ||
-              "AWAITING_APPROVAL",
-            approvedBy: res.remediation.approved_by,
-            approvedAt: res.remediation.approved_at,
-            rejectionReason: res.remediation.rejection_reason,
-          }
-          setApprovalStatus(updatedRemediation.status)
-        }
-
-        setData((prev) => ({
-          ...prev,
-          incidentId: res.incident_id || targetIncidentId,
-          title: res.summary ? res.summary.slice(0, 80) : prev.title,
-          summary: res.summary || prev.summary,
-          status: res.status === "COMPLETED" ? "RESOLVED" : "INVESTIGATING",
-          hypotheses:
-            mappedHypotheses.length > 0 ? mappedHypotheses : prev.hypotheses,
-          evidence: mappedEvidence.length > 0 ? mappedEvidence : prev.evidence,
-          remediation: updatedRemediation,
-          retrievedSources: res.retrieved_sources || [],
-          retrievalStatus:
-            res.retrieval_status ||
-            (res.retrieved_sources?.length ? "SUCCESS" : "NO_DOCUMENTS_FOUND"),
-        }))
-
-        // Fetch persisted audit trail for this incident
-        try {
-          const auditEntries = await api.get<AuditLogEntry[]>(
-            `/api/v1/investigations/audit/log?incident_id=${targetIncidentId}`
-          )
-          if (isMounted && Array.isArray(auditEntries)) {
-            setAuditLog(auditEntries)
-          }
-        } catch {
-          // ignore audit log fetch failure on initial load
-        }
+        // Audit history is secondary; it must not hold the actual evidence view in loading state.
+        void api.get<AuditLogEntry[]>(
+          `/api/v1/investigations/audit/log?incident_id=${targetIncidentId}`
+        ).then((auditEntries) => {
+          if (isMounted && Array.isArray(auditEntries)) setAuditLog(auditEntries)
+        }).catch(() => undefined)
       } catch (err) {
+        if (isMounted) {
+          setInvestigationError(err instanceof Error ? err.message : "Unable to load this investigation.")
+        }
         console.warn(
           "Could not load investigation from API for incident",
           targetIncidentId,
           err
         )
+      } finally {
+        if (isMounted) setIsLoading(false)
       }
     }
 
@@ -174,32 +274,56 @@ export function useInvestigation(targetIncidentId?: string) {
     return () => {
       isMounted = false
     }
-  }, [targetIncidentId])
+  }, [targetIncidentId, applyInvestigationResponse])
+
+  const retryInvestigation = useCallback(async () => {
+    const incidentId = targetIncidentId
+    if (
+      !incidentId ||
+      isDemoIncident(incidentId) ||
+      currentTargetIncidentId.current !== incidentId
+    ) return
+    const force = data.status !== "INVESTIGATING"
+    setIsLoading(true)
+    setInvestigationError(null)
+    try {
+      const res = await triggerInvestigation(incidentId, force)
+      if (currentTargetIncidentId.current !== incidentId) return
+      applyInvestigationResponse(res, incidentId)
+    } catch (err) {
+      if (currentTargetIncidentId.current === incidentId) {
+        setInvestigationError(err instanceof Error ? err.message : "Unable to retry this investigation.")
+      }
+    } finally {
+      if (currentTargetIncidentId.current === incidentId) setIsLoading(false)
+    }
+  }, [targetIncidentId, data.status, applyInvestigationResponse])
 
   // Visible steps based on simulation progress
+  const demoWorkspace = isDemoIncident(targetIncidentId)
   const visibleSteps: InvestigationStep[] = (
-    data.steps || mockInvestigationSteps
+    demoWorkspace ? (data.steps.length ? data.steps : mockInvestigationSteps) : data.steps
   ).slice(0, stepIndex)
 
   // Visible evidence based on simulation progress
-  const activeEvidenceList =
-    data.evidence && data.evidence.length > 0
-      ? data.evidence
-      : mockEvidenceItems
-  const visibleEvidence: EvidenceItem[] = activeEvidenceList.filter((_, idx) => {
-    if (stepIndex <= 1) return false
-    if (stepIndex === 2) return idx <= 1 // metrics
-    if (stepIndex === 3) return idx <= 2 // logs
-    if (stepIndex === 4) return idx <= 6 // deploys & all
-    return true
-  })
+  const activeEvidenceList = demoWorkspace
+    ? (data.evidence.length > 0 ? data.evidence : mockEvidenceItems)
+    : data.evidence
+  const visibleEvidence: EvidenceItem[] = demoWorkspace
+    ? activeEvidenceList.filter((_, idx) => {
+        if (stepIndex <= 1) return false
+        if (stepIndex === 2) return idx <= 1 // metrics
+        if (stepIndex === 3) return idx <= 2 // logs
+        if (stepIndex === 4) return idx <= 6 // deploys & all
+        return true
+      })
+    : activeEvidenceList
 
   // Dynamic hypotheses score progression based on step index
-  const activeHypotheses =
-    data.hypotheses && data.hypotheses.length > 0
-      ? data.hypotheses
-      : mockHypotheses
-  const dynamicHypotheses: Hypothesis[] = activeHypotheses.map((hyp) => {
+  const activeHypotheses = demoWorkspace
+    ? (data.hypotheses.length > 0 ? data.hypotheses : mockHypotheses)
+    : data.hypotheses
+  const dynamicHypotheses: Hypothesis[] = demoWorkspace ? activeHypotheses.map((hyp) => {
     if (stepIndex <= 1) {
       return { ...hyp, score: 25, likelihood: "POSSIBLE", verified: false }
     }
@@ -218,12 +342,12 @@ export function useInvestigation(targetIncidentId?: string) {
       return { ...hyp, score: 18, likelihood: "LESS_LIKELY", verified: false }
     }
     return hyp
-  })
+  }) : activeHypotheses
 
   // Simulation timer
   useEffect(() => {
     let timer: NodeJS.Timeout
-    if (isPlaying) {
+    if (isPlaying && isDemoIncident(targetIncidentId)) {
       timer = setInterval(() => {
         setStepIndex((prev) => {
           if (prev >= mockInvestigationSteps.length) {
@@ -235,7 +359,7 @@ export function useInvestigation(targetIncidentId?: string) {
       }, 1800)
     }
     return () => clearInterval(timer)
-  }, [isPlaying])
+  }, [isPlaying, targetIncidentId])
 
   const toggleEvidenceExpanded = useCallback((id: string) => {
     setExpandedEvidenceIds((prev) => {
@@ -381,6 +505,10 @@ export function useInvestigation(targetIncidentId?: string) {
 
   return {
     data,
+    isLoading,
+    investigationError,
+    retryInvestigation,
+    demoWorkspace,
     activeTab,
     setActiveTab,
     stepIndex,

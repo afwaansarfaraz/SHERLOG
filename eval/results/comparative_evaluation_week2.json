@@ -1,0 +1,284 @@
+{
+  "baseline": {
+    "mode_name": "Mode A: Rules-Only Baseline",
+    "total_cases": 7,
+    "top_1_matches": 7,
+    "top_1_accuracy": 100.0,
+    "top_3_matches": 7,
+    "top_3_accuracy": 100.0,
+    "avg_latency_ms": 0.1,
+    "avg_tokens_used": 0.0,
+    "fallback_count": 7,
+    "fallback_rate": 100.0,
+    "avg_retrieval_relevance": 0.0,
+    "case_results": [
+      {
+        "scenario_id": "SCN-001",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "database_connection_pool_exhaustion",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.17,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-002",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.08,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-003",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "downstream_dependency_timeout",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.07,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-004",
+        "expected": "sudden_traffic_spike",
+        "predicted": "sudden_traffic_spike",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.06,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-007",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "database_connection_pool_exhaustion",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.06,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-008",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.39,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-009",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "downstream_dependency_timeout",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 0.09,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      }
+    ]
+  },
+  "llm_no_rag": {
+    "mode_name": "Mode B: LLM Investigation (No RAG)",
+    "total_cases": 7,
+    "top_1_matches": 5,
+    "top_1_accuracy": 71.4,
+    "top_3_matches": 7,
+    "top_3_accuracy": 100.0,
+    "avg_latency_ms": 3538.1,
+    "avg_tokens_used": 1358.3,
+    "fallback_count": 1,
+    "fallback_rate": 14.3,
+    "avg_retrieval_relevance": 0.0,
+    "case_results": [
+      {
+        "scenario_id": "SCN-001",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "invalid_service_configuration",
+        "top_1_match": false,
+        "top_3_match": true,
+        "latency_ms": 4018.05,
+        "tokens_used": 1601,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-002",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 2920.93,
+        "tokens_used": 1240,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-003",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "sudden_traffic_spike",
+        "top_1_match": false,
+        "top_3_match": true,
+        "latency_ms": 4279.03,
+        "tokens_used": 1712,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-004",
+        "expected": "sudden_traffic_spike",
+        "predicted": "sudden_traffic_spike",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 3974.17,
+        "tokens_used": 1581,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-007",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "database_connection_pool_exhaustion",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 3966.48,
+        "tokens_used": 1632,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-008",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 4161.65,
+        "tokens_used": 1742,
+        "fallback": false,
+        "relevance_score": 0.0
+      },
+      {
+        "scenario_id": "SCN-009",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "downstream_dependency_timeout",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1446.64,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.0
+      }
+    ]
+  },
+  "llm_rag": {
+    "mode_name": "Mode C: LLM Investigation (With RAG)",
+    "total_cases": 7,
+    "top_1_matches": 7,
+    "top_1_accuracy": 100.0,
+    "non_fallback_cases": 1,
+    "non_fallback_top_1_matches": 1,
+    "non_fallback_top_1_accuracy": 100.0,
+    "fallback_cases": 6,
+    "fallback_top_1_matches": 6,
+    "fallback_top_1_accuracy": 100.0,
+    "top_3_matches": 7,
+    "top_3_accuracy": 100.0,
+    "avg_latency_ms": 2453.6,
+    "avg_tokens_used": 370.3,
+    "fallback_count": 6,
+    "fallback_rate": 85.7,
+    "avg_retrieval_relevance": 0.8016,
+    "case_results": [
+      {
+        "scenario_id": "SCN-001",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "database_connection_pool_exhaustion",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1601.64,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.8289
+      },
+      {
+        "scenario_id": "SCN-002",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 2122.46,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.8273
+      },
+      {
+        "scenario_id": "SCN-003",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "downstream_dependency_timeout",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1662.7,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.8085
+      },
+      {
+        "scenario_id": "SCN-004",
+        "expected": "sudden_traffic_spike",
+        "predicted": "sudden_traffic_spike",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1867.26,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.7183
+      },
+      {
+        "scenario_id": "SCN-007",
+        "expected": "database_connection_pool_exhaustion",
+        "predicted": "database_connection_pool_exhaustion",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 6268.49,
+        "tokens_used": 2592,
+        "fallback": false,
+        "relevance_score": 0.813
+      },
+      {
+        "scenario_id": "SCN-008",
+        "expected": "slow_database_query",
+        "predicted": "slow_database_query",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1899.27,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.8014
+      },
+      {
+        "scenario_id": "SCN-009",
+        "expected": "downstream_dependency_timeout",
+        "predicted": "downstream_dependency_timeout",
+        "top_1_match": true,
+        "top_3_match": true,
+        "latency_ms": 1753.13,
+        "tokens_used": 0,
+        "fallback": true,
+        "relevance_score": 0.814
+      }
+    ]
+  }
+}

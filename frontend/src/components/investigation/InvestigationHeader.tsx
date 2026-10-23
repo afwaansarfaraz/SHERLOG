@@ -18,7 +18,8 @@ interface InvestigationHeaderProps {
   service: string
   subtitle: string
   openedAt: string
-  status: "INVESTIGATING" | "VERIFYING" | "RESOLVED"
+  status: "INVESTIGATING" | "VERIFYING" | "RESOLVED" | "FAILED"
+  showSimulationControls?: boolean
   isPlaying: boolean
   currentStep: number
   totalSteps: number
@@ -35,6 +36,7 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
   subtitle,
   openedAt,
   status,
+  showSimulationControls = true,
   isPlaying,
   currentStep,
   totalSteps,
@@ -57,7 +59,15 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
             <span className="font-semibold text-bone">{incidentId}</span>
           </button>
 
-          <Badge variant={status === "INVESTIGATING" ? "investigating" : "resolved"}>
+          <Badge
+            variant={
+              status === "INVESTIGATING"
+                ? "investigating"
+                : status === "FAILED"
+                  ? "critical"
+                  : "resolved"
+            }
+          >
             {status}
           </Badge>
 
@@ -69,7 +79,7 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
         {/* Right: Simulation Controls & Workspace Actions */}
         <div className="flex items-center gap-2">
           {/* Agent Loop Simulation Controls */}
-          <div className="flex items-center gap-1 bg-soot border border-ash rounded p-0.5">
+          {showSimulationControls && <div className="flex items-center gap-1 bg-soot border border-ash rounded p-0.5">
             <Button
               variant="ghost"
               size="sm"
@@ -111,7 +121,7 @@ export const InvestigationHeader: React.FC<InvestigationHeaderProps> = ({
             >
               <FastForward className="w-3 h-3" />
             </Button>
-          </div>
+          </div>}
 
           <Button variant="outline" size="sm" className="hidden sm:inline-flex">
             <Share2 className="w-3.5 h-3.5 mr-1" />

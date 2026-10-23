@@ -1,13 +1,13 @@
 {
-  "run_id": "eval-run-20261011-144411",
-  "timestamp": "2026-10-11T14:44:11.117283+00:00",
-  "evaluator_name": "Rule-Based Deterministic Baseline",
+  "run_id": "eval-run-20261021-111037",
+  "timestamp": "2026-10-21T11:10:37.678298+00:00",
+  "evaluator_name": "Pytest Baseline Runner",
   "total_scenarios": 10,
   "passed_scenarios": 10,
   "failed_scenarios": 0,
   "top_1_accuracy": 100.0,
   "top_3_accuracy": 100.0,
-  "avg_latency_ms": 0.08,
+  "avg_latency_ms": 0.07,
   "results": [
     {
       "scenario_id": "SCN-001",
@@ -33,7 +33,7 @@
       "recommended_remediation": "increase_db_connection_pool_size",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.14
+      "execution_time_ms": 0.16
     },
     {
       "scenario_id": "SCN-002",
@@ -58,7 +58,7 @@
       "recommended_remediation": "optimize_query_or_add_index",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.06
+      "execution_time_ms": 0.08
     },
     {
       "scenario_id": "SCN-003",
@@ -83,7 +83,7 @@
       "recommended_remediation": "increase_downstream_timeout",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.05
+      "execution_time_ms": 0.08
     },
     {
       "scenario_id": "SCN-004",
@@ -108,7 +108,7 @@
       "recommended_remediation": "apply_rate_limiting_and_scale",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.03
+      "execution_time_ms": 0.06
     },
     {
       "scenario_id": "SCN-005",
@@ -134,7 +134,7 @@
       "recommended_remediation": "revert_configuration_change",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.22
+      "execution_time_ms": 0.07
     },
     {
       "scenario_id": "SCN-006",
@@ -159,7 +159,7 @@
       "recommended_remediation": "restart_service_and_inspect_heap",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.07
+      "execution_time_ms": 0.06
     },
     {
       "scenario_id": "SCN-007",
@@ -183,7 +183,7 @@
       "recommended_remediation": "increase_db_connection_pool_size",
       "passed": true,
       "failure_reason": null,
-      "execution_time_ms": 0.07
+      "execution_time_ms": 0.06
     },
     {
       "scenario_id": "SCN-008",

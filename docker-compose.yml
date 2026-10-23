@@ -76,6 +76,44 @@ services:
     networks:
       - sherlog-network
 
+  # Sherlog alert ingestion API. Kept private to the Compose network; the
+  # developer-facing API remains on the host's loopback-bound port 8080.
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sherlog-backend
+    restart: unless-stopped
+    environment:
+      - APP_ENV=development
+      - HOST=0.0.0.0
+      - PORT=8080
+      - API_V1_PREFIX=/api
+      - ENABLE_DEMO_SEEDING=false
+      - API_KEY=${API_KEY:?Set API_KEY in the root .env file}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:?Set WEBHOOK_SECRET in the root .env file}
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/sherlog
+      - REDIS_URL=redis://redis:6379/0
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOKI_URL=http://loki:3100
+      - JAEGER_URL=http://jaeger:16686
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - sherlog-network
+
   # Observability - Alerts
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -86,6 +124,10 @@ services:
       - "--storage.path=/alertmanager"
     volumes:
       - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./.secrets/alertmanager_webhook_token:/run/secrets/sherlog_webhook_token:ro
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
       - "9093:9093"
     healthcheck:
@@ -172,7 +214,6 @@ services:
       - ORDERS_SERVICE_URL=http://orders:8001
       - LOKI_URL=http://loki:3100
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      - WEBHOOK_SECRET=sherlog-webhook-secret-key
     ports:
       - "8000:8000"
     depends_on:

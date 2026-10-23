@@ -8,6 +8,7 @@ from backend.app.db.models.investigation import (
     AuditLogModel,
 )
 from backend.app.db.models.knowledge import KnowledgeDocumentModel, KnowledgeChunkModel
+from backend.app.db.models.application import ApplicationModel
 
 __all__ = [
     "Base",
@@ -18,4 +19,5 @@ __all__ = [
     "AuditLogModel",
     "KnowledgeDocumentModel",
     "KnowledgeChunkModel",
+    "ApplicationModel",
 ]

@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 import logging
+import math
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -72,6 +73,8 @@ class EvidenceCollector:
             Tuple of (collected EvidenceItem list, tool execution logs list).
         """
         service = incident.get("service", "unknown")
+        incident_text = f"{incident.get('title', '')} {incident.get('summary', '')}".lower()
+        is_slow_query_incident = bool(re.search(r"\bslow quer(?:y|ies)\b", incident_text))
         evidence_items: List[EvidenceItem] = []
         tool_executions: List[Dict[str, Any]] = []
 
@@ -127,6 +130,10 @@ class EvidenceCollector:
                     "HTTP Request Latency p95",
                 ),
             ]
+            if is_slow_query_incident:
+                prom_queries.append(
+                    (f"slow_queries_total{{service='{service}'}}", "Slow Query Count")
+                )
 
             for query_str, desc in prom_queries:
                 if consumption.tool_calls >= budget.max_tool_calls or len(evidence_items) >= budget.max_evidence_items:
@@ -148,6 +155,11 @@ class EvidenceCollector:
                     if prom_res.status == EvidenceStatus.SUCCESS and prom_res.series:
                         for s in prom_res.series[:5]:  # Bounded to top 5 series
                             val = s.values[0].value if s.values else 0.0
+                            # Prometheus histogram_quantile can return NaN when a
+                            # bucket has no observations. It is not evidence and
+                            # cannot be stored in PostgreSQL JSON columns.
+                            if not math.isfinite(val):
+                                continue
                             ts = (
                                 datetime.fromtimestamp(s.values[0].timestamp, tz=timezone.utc).isoformat()
                                 if s.values
@@ -189,7 +201,10 @@ class EvidenceCollector:
 
         # 3. Query Loki Logs
         if consumption.tool_calls < budget.max_tool_calls and len(evidence_items) < budget.max_evidence_items:
-            log_query = f'{{service="{service}"}} |= "error" | json'
+            # Loki's `|=` filter is case-sensitive; Orders emits this warning
+            # with an initial capital letter.
+            log_signal = "Slow query" if is_slow_query_incident else "error"
+            log_query = f'{{service="{service}"}} |= "{log_signal}" | json'
             consumption.tool_calls += 1
             try:
                 loki_inp = LokiQueryInput(query=log_query, limit=10)
@@ -253,14 +268,19 @@ class EvidenceCollector:
             try:
                 jaeger_inp = JaegerSearchTracesInput(
                     service=service,
-                    tags="error=true",
+                    tags=None if is_slow_query_incident else "error=true",
+                    min_duration="300ms" if is_slow_query_incident else None,
                     limit=5,
                 )
                 jaeger_res = self.jaeger.search_traces(jaeger_inp)
 
                 tool_executions.append({
                     "tool": "JaegerTool",
-                    "query": f"service={service} tags.error=true",
+                    "query": (
+                        f"service={service} minDuration=300ms"
+                        if is_slow_query_incident
+                        else f"service={service} tags.error=true"
+                    ),
                     "status": jaeger_res.status.value,
                     "duration_ms": jaeger_res.execution_time_ms,
                     "error": jaeger_res.error_message,

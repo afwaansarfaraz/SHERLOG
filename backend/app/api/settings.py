@@ -298,7 +298,7 @@ def get_platform_settings_status(db: Session = Depends(get_db)) -> PlatformSetti
     security_info = {
         "alertmanager_webhook_configured": bool(settings.WEBHOOK_SECRET),
         "alertmanager_webhook_secret_masked": _mask_secret(settings.WEBHOOK_SECRET),
-        "webhook_endpoint": "/api/v1/alerts/webhook",
+        "webhook_endpoint": "/api/v1/webhooks/alertmanager",
         "oauth_status": "not_implemented",
         "oauth_details": "OAuth 2.0 / SSO is not configured in current milestone. Local operator authentication active.",
     }
